@@ -1,14 +1,19 @@
 import { SignUp } from '@clerk/nextjs'
-import Image from 'next/image'
 
 export default function SignUpPage() {
   return (
-    <main style={{ minHeight:'100dvh', background:'#0D0F12', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:"'DM Sans',sans-serif" }}>
-      <div style={{ marginBottom:'40px', textAlign:'center' }}>
-        <Image src="/logo.png" alt="Vynk" width={120} height={38} style={{ objectFit:'contain' }} />
-        <p style={{ color:'#6F737A', fontSize:'14px', marginTop:'10px', fontWeight:300 }}>Create your digital identity</p>
+    <main style={{ minHeight:'100dvh', background:'#0D0F12', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'40px 20px 100px', fontFamily:"'DM Sans',sans-serif" }}>
+
+      {/* Logo container con profundidad neumórfica */}
+      <div style={{ width:'100%', maxWidth:'400px', display:'flex', justifyContent:'center', marginBottom:'32px' }}>
+        <div style={{ padding:'20px 32px', background:'#0D0F12', boxShadow:'6px 6px 16px #08090B, -4px -4px 10px #141720', borderRadius:'20px', border:'1px solid rgba(212,168,79,0.06)', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+          <img src="/logo.png" alt="Vynk" style={{ height:'36px', objectFit:'contain' }} />
+        </div>
       </div>
-      <div style={{ background:'#0D0F12', boxShadow:'12px 12px 32px #08090B, -7px -7px 20px #141720', borderRadius:'28px', border:'1px solid rgba(212,168,79,0.06)', overflow:'hidden' }}>
+      <p style={{ color:'#6F737A', fontSize:'13px', marginBottom:'28px', fontWeight:300, textAlign:'center' }}>Create your digital identity</p>
+
+      {/* Clerk card */}
+      <div style={{ width:'100%', maxWidth:'400px', background:'#0D0F12', boxShadow:'10px 10px 28px #08090B, -6px -6px 18px #141720', borderRadius:'24px', border:'1px solid rgba(212,168,79,0.06)', overflow:'hidden' }}>
         <SignUp appearance={{
           variables: {
             colorPrimary:'#D4A84F', colorBackground:'#0D0F12',
@@ -17,7 +22,8 @@ export default function SignUpPage() {
             borderRadius:'12px', fontFamily:"'DM Sans', sans-serif",
           },
           elements: {
-            card: { background:'transparent', boxShadow:'none', border:'none' },
+            card: { background:'transparent', boxShadow:'none', border:'none', width:'100%' },
+            rootBox: { width:'100%' },
             formButtonPrimary: { background:'linear-gradient(135deg,#D4A84F,#E8C06A,#A07830)', color:'#050607', fontWeight:700, boxShadow:'3px 3px 10px #08090B, 0 0 16px rgba(212,168,79,0.2)', borderRadius:'12px', border:'none' },
             formFieldInput: { background:'#0D0F12', boxShadow:'inset 3px 3px 8px #08090B, inset -2px -2px 6px #141720', border:'1px solid rgba(255,255,255,0.04)', color:'#BFC3C9', borderRadius:'10px' },
             footerActionLink: { color:'#D4A84F' },

@@ -4,26 +4,34 @@ import { verifyPin, generate2FACode, send2FAEmail, logAccess, createSession, enc
 const codes    = new Map<string,{code:string;expires:number}>()
 const lockouts = new Map<string,{count:number;until:number}>()
 
-function ip(req: NextRequest) {
+function getIp(req: NextRequest) {
   return req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
 }
 
 export async function POST(req: NextRequest) {
-  const clientIp = ip(req)
+  const clientIp = getIp(req)
 
   // Check lockout
   const lock = lockouts.get(clientIp)
   if (lock && lock.until > Date.now()) {
-    await logAccess({ type:'login_blocked', ip:clientIp, notes:'IP locked' })
     const mins = Math.ceil((lock.until - Date.now()) / 60000)
     return NextResponse.json({ error:`Too many attempts. Try again in ${mins} minute(s).` }, { status:429 })
   }
 
-  const { pin, code } = await req.json()
+  let body: any
+  try { body = await req.json() } catch { return NextResponse.json({ error:'Invalid request' }, { status:400 }) }
+
+  const { pin, code } = body
 
   // ── Step 1: PIN ──────────────────────────────────────────────
   if (pin && !code) {
-    const valid = await verifyPin(pin)
+    // Debug log — remove after confirming it works
+    console.log('[admin-auth] PIN attempt, hash present:', !!process.env.ADMIN_PIN_HASH)
+    console.log('[admin-auth] Hash starts with:', process.env.ADMIN_PIN_HASH?.substring(0, 7))
+
+    const valid = await verifyPin(String(pin))
+    console.log('[admin-auth] PIN valid:', valid)
+
     if (!valid) {
       const prev  = lockouts.get(clientIp) || { count:0, until:0 }
       const count = prev.count + 1
@@ -32,7 +40,7 @@ export async function POST(req: NextRequest) {
       const remaining = Math.max(0, 3-count)
       return NextResponse.json({ error:`Wrong PIN. ${remaining} attempt(s) left.`, remaining }, { status:401 })
     }
-    // Valid — send 2FA
+
     lockouts.delete(clientIp)
     const twoFA = generate2FACode()
     codes.set(clientIp, { code: twoFA, expires: Date.now() + 5*60*1000 })
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (!stored || stored.expires < Date.now()) {
       return NextResponse.json({ error:'Code expired. Start over.' }, { status:401 })
     }
-    if (stored.code !== code) {
+    if (stored.code !== String(code)) {
       await logAccess({ type:'2fa_failed', ip:clientIp })
       return NextResponse.json({ error:'Invalid code.' }, { status:401 })
     }
@@ -59,7 +67,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge:   parseInt(process.env.ADMIN_SESSION_MINUTES||'15') * 60,
+      maxAge:   parseInt(process.env.ADMIN_SESSION_MINUTES || '15') * 60,
       path:     '/',
     })
     return res
@@ -69,7 +77,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await logAccess({ type:'logout', ip:ip(req) })
+  await logAccess({ type:'logout', ip:getIp(req) })
   const res = NextResponse.json({ ok:true })
   res.cookies.delete('vynk_admin')
   return res
