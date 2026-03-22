@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&family=Syne:wght@400;700&family=Cormorant+Garamond:wght@300;600&family=Bebas+Neue&family=Josefin+Sans:wght@300;600&display=swap');
+
+/* ── Vynk Neumorphism System ─────────────────────────────────── */
+:root {
+  /* Base surface — dark neumorphism */
+  --nm-bg:          #1a1a24;
+  --nm-bg-lt:       #202030;
+  --nm-shadow-dark: #0d0d14;
+  --nm-shadow-lite: #27273a;
+
+  /* Gold */
+  --nm-gold:        #d4a843;
+  --nm-gold-lt:     #e8c96a;
+  --nm-gold-dk:     #a07830;
+  --nm-gold-glow:   rgba(212,168,67,0.18);
+
+  /* Text */
+  --nm-text:        #e8e8f0;
+  --nm-muted:       #6a6a8a;
+  --nm-subtle:      #3a3a52;
+
+  /* Neumorphic shadow pairs */
+  --nm-raised:      6px 6px 14px var(--nm-shadow-dark), -4px -4px 10px var(--nm-shadow-lite);
+  --nm-raised-sm:   3px 3px 8px var(--nm-shadow-dark),  -2px -2px 6px var(--nm-shadow-lite);
+  --nm-inset:       inset 4px 4px 10px var(--nm-shadow-dark), inset -3px -3px 8px var(--nm-shadow-lite);
+  --nm-inset-sm:    inset 2px 2px 6px var(--nm-shadow-dark),  inset -2px -2px 4px var(--nm-shadow-lite);
+  --nm-gold-raised: 4px 4px 12px var(--nm-shadow-dark), -2px -2px 8px var(--nm-shadow-lite), 0 0 20px var(--nm-gold-glow);
+}
+
+* { box-sizing: border-box; }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--nm-bg);
+  color: var(--nm-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Core Neumorphic Surfaces ────────────────────────────────── */
+.nm-surface {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised);
+  border-radius: 16px;
+}
+.nm-surface-sm {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised-sm);
+  border-radius: 10px;
+}
+.nm-inset {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset);
+  border-radius: 12px;
+}
+.nm-inset-sm {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset-sm);
+  border-radius: 8px;
+}
+.nm-card {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.nm-pill {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised-sm);
+  border-radius: 999px;
+}
+
+/* ── Neumorphic Buttons ──────────────────────────────────────── */
+.nm-btn {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised-sm);
+  border: none;
+  border-radius: 12px;
+  color: var(--nm-text);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  transition: all 0.18s ease;
+}
+.nm-btn:hover {
+  box-shadow: 5px 5px 12px var(--nm-shadow-dark), -3px -3px 8px var(--nm-shadow-lite);
+}
+.nm-btn:active {
+  box-shadow: var(--nm-inset-sm);
+  transform: scale(0.98);
+}
+.nm-btn-gold {
+  background: linear-gradient(135deg, var(--nm-gold) 0%, var(--nm-gold-lt) 50%, var(--nm-gold-dk) 100%);
+  box-shadow: var(--nm-gold-raised);
+  border: none;
+  border-radius: 12px;
+  color: #0d0d14;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  transition: all 0.18s ease;
+}
+.nm-btn-gold:hover {
+  box-shadow: 5px 5px 16px var(--nm-shadow-dark), -2px -2px 8px var(--nm-shadow-lite), 0 0 28px var(--nm-gold-glow);
+  filter: brightness(1.08);
+}
+.nm-btn-gold:active {
+  box-shadow: inset 2px 2px 6px rgba(0,0,0,0.3), 0 0 16px var(--nm-gold-glow);
+  transform: scale(0.98);
+}
+.nm-btn-pill {
+  border-radius: 999px;
+}
+
+/* ── Neumorphic Inputs ───────────────────────────────────────── */
+.nm-input {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 12px;
+  color: var(--nm-text);
+  font-family: 'DM Sans', sans-serif;
+  padding: 11px 16px;
+  width: 100%;
+  outline: none;
+  transition: all 0.18s ease;
+}
+.nm-input::placeholder { color: var(--nm-muted); }
+.nm-input:focus {
+  box-shadow: var(--nm-inset), 0 0 0 1px rgba(212,168,67,0.35);
+  border-color: rgba(212,168,67,0.25);
+}
+.nm-input-pill {
+  border-radius: 999px;
+  padding: 11px 20px;
+}
+
+/* ── Neumorphic Toggles ──────────────────────────────────────── */
+.nm-toggle-track {
+  width: 52px; height: 28px;
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset-sm);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+.nm-toggle-thumb {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised-sm);
+  position: absolute;
+  top: 4px; left: 4px;
+  transition: transform 0.2s ease;
+}
+.nm-toggle-track.on .nm-toggle-thumb {
+  transform: translateX(24px);
+  background: var(--nm-gold);
+  box-shadow: 2px 2px 6px var(--nm-shadow-dark), 0 0 10px var(--nm-gold-glow);
+}
+.nm-toggle-track.on {
+  box-shadow: inset 3px 3px 8px var(--nm-shadow-dark), inset -2px -2px 5px rgba(212,168,67,0.12);
+}
+
+/* ── Neumorphic Progress ─────────────────────────────────────── */
+.nm-progress-track {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset-sm);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+.nm-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--nm-gold-dk), var(--nm-gold), var(--nm-gold-lt));
+  border-radius: 999px;
+  box-shadow: 0 0 8px var(--nm-gold-glow);
+}
+
+/* ── Card flip ───────────────────────────────────────────────── */
+.card-scene { perspective: 1200px; }
+.card-flipper {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.card-flipper.flipped { transform: rotateY(180deg); }
+.card-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.card-face.back {
+  transform: rotateY(180deg);
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
+
+/* ── Gold gradient text ──────────────────────────────────────── */
+.gold-text {
+  background: linear-gradient(135deg, #d4a843 0%, #f0d080 50%, #a07830 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Neumorphic avatar / circle ─────────────────────────────── */
+.nm-circle {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised-sm);
+  border-radius: 50%;
+}
+.nm-circle-inset {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-inset-sm);
+  border-radius: 50%;
+}
+
+/* ── Neumorphic icon button ─────────────────────────────────── */
+.nm-icon-btn {
+  background: var(--nm-bg);
+  box-shadow: var(--nm-raised-sm);
+  border: none;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--nm-muted);
+  transition: all 0.15s ease;
+}
+.nm-icon-btn:hover { color: var(--nm-gold); box-shadow: 4px 4px 10px var(--nm-shadow-dark), -2px -2px 6px var(--nm-shadow-lite), 0 0 12px var(--nm-gold-glow); }
+.nm-icon-btn:active { box-shadow: var(--nm-inset-sm); transform: scale(0.95); }
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--nm-subtle); border-radius: 10px; }
