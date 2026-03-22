@@ -2,24 +2,15 @@ import { SignIn } from '@clerk/nextjs'
 
 export default function SignInPage() {
   return (
-    <main style={{ minHeight:'100dvh', background:'#0D0F12', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', fontFamily:"'DM Sans',sans-serif" }}>
-
-      {/* Logo container con profundidad neumórfica */}
-      <div style={{ width:'100%', maxWidth:'400px', display:'flex', justifyContent:'center', marginBottom:'32px' }}>
-        <div style={{ padding:'20px 32px', background:'#0D0F12', boxShadow:'6px 6px 16px #08090B, -4px -4px 10px #141720', borderRadius:'20px', border:'1px solid rgba(212,168,79,0.06)', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
-          <img src="/logo.png" alt="Vynk" style={{ height:'36px', objectFit:'contain' }} />
-        </div>
+    <main style={{ minHeight:'100dvh', background:'#0D0F12', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'32px 20px', fontFamily:"'DM Sans',sans-serif" }}>
+      {/* Logo con contenedor neumórfico centrado */}
+      <div style={{ padding:'20px 32px', background:'#0D0F12', boxShadow:'8px 8px 20px #08090B, -5px -5px 14px #141720, inset 0 1px 0 rgba(212,168,79,0.08)', borderRadius:'20px', border:'1px solid rgba(212,168,79,0.07)', marginBottom:'12px' }}>
+        <img src="/logo.png" alt="Vynk" style={{ height:'40px', objectFit:'contain', display:'block' }} />
       </div>
-      <p style={{ color:'#6F737A', fontSize:'13px', marginBottom:'28px', fontWeight:300, textAlign:'center' }}>Make every introduction smart</p>
-
+      <p style={{ color:'#6F737A', fontSize:'13px', marginBottom:'28px', fontWeight:300 }}>Make every introduction smart</p>
       <div style={{ width:'100%', maxWidth:'400px', background:'#0D0F12', boxShadow:'10px 10px 28px #08090B, -6px -6px 18px #141720', borderRadius:'24px', border:'1px solid rgba(212,168,79,0.06)', overflow:'hidden' }}>
         <SignIn appearance={{
-          variables: {
-            colorPrimary:'#D4A84F', colorBackground:'#0D0F12',
-            colorText:'#BFC3C9', colorTextSecondary:'#6F737A',
-            colorInputBackground:'#0D0F12', colorInputText:'#BFC3C9',
-            borderRadius:'12px', fontFamily:"'DM Sans', sans-serif",
-          },
+          variables: { colorPrimary:'#D4A84F', colorBackground:'#0D0F12', colorText:'#BFC3C9', colorTextSecondary:'#6F737A', colorInputBackground:'#0D0F12', colorInputText:'#BFC3C9', borderRadius:'12px', fontFamily:"'DM Sans',sans-serif" },
           elements: {
             card: { background:'transparent', boxShadow:'none', border:'none', width:'100%' },
             rootBox: { width:'100%' },

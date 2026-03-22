@@ -11,7 +11,6 @@ function getIp(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const clientIp = getIp(req)
 
-  // Check lockout
   const lock = lockouts.get(clientIp)
   if (lock && lock.until > Date.now()) {
     const mins = Math.ceil((lock.until - Date.now()) / 60000)
@@ -19,18 +18,28 @@ export async function POST(req: NextRequest) {
   }
 
   let body: any
-  try { body = await req.json() } catch { return NextResponse.json({ error:'Invalid request' }, { status:400 }) }
+  try { body = await req.json() } catch {
+    return NextResponse.json({ error:'Invalid request' }, { status:400 })
+  }
 
   const { pin, code } = body
 
-  // ── Step 1: PIN ──────────────────────────────────────────────
-  if (pin && !code) {
-    // Debug log — remove after confirming it works
-    console.log('[admin-auth] PIN attempt, hash present:', !!process.env.ADMIN_PIN_HASH)
-    console.log('[admin-auth] Hash starts with:', process.env.ADMIN_PIN_HASH?.substring(0, 7))
+  // ── Step 1: PIN ──
+  if (pin !== undefined && !code) {
+    const pinStr  = String(pin).trim()
+    const hashRaw = process.env.ADMIN_PIN_HASH || ''
+    const hash    = hashRaw.trim()  // strip any accidental whitespace from Vercel env
 
-    const valid = await verifyPin(String(pin))
-    console.log('[admin-auth] PIN valid:', valid)
+    console.log('[admin] PIN attempt:', pinStr.length, 'digits')
+    console.log('[admin] Hash present:', hash.length > 0)
+    console.log('[admin] Hash prefix:', hash.substring(0, 7))
+
+    if (!hash) {
+      return NextResponse.json({ error:'ADMIN_PIN_HASH not configured in environment variables.' }, { status:500 })
+    }
+
+    const valid = await verifyPin(pinStr, hash)
+    console.log('[admin] PIN valid:', valid)
 
     if (!valid) {
       const prev  = lockouts.get(clientIp) || { count:0, until:0 }
@@ -49,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ step:'2fa' })
   }
 
-  // ── Step 2: 2FA ──────────────────────────────────────────────
+  // ── Step 2: 2FA ──
   if (code) {
     const stored = codes.get(clientIp)
     if (!stored || stored.expires < Date.now()) {
