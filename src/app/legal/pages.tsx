@@ -1,29 +1,33 @@
 import Image from 'next/image'
 import Link from 'next/link'
 
-const NM = { bg:'#1a1a24', dark:'#0d0d14', lite:'#27273a', gold:'#d4a843', muted:'#6a6a8a', text:'#e8e8f0', subtle:'#3a3a52' }
+const C = { graphite:'#0D0F12', gold:'#D4A84F', silver:'#BFC3C9', smoke:'#6F737A', nmDark:'#08090B', nmLite:'#141720' }
 
 function Layout({ title, children }: { title:string; children:React.ReactNode }) {
   return (
-    <main style={{ minHeight:'100vh', background:NM.bg, color:NM.text, fontFamily:"'DM Sans',sans-serif" }}>
-      <nav style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'20px 48px', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+    <main style={{ minHeight:'100dvh', background:C.graphite, color:C.silver, fontFamily:"'DM Sans',sans-serif" }}>
+      <nav style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 48px', height:'68px', background:'rgba(13,15,18,0.9)', backdropFilter:'blur(20px)', borderBottom:`1px solid rgba(212,168,79,0.06)`, position:'sticky', top:0, zIndex:10 }}>
         <Link href="/"><Image src="/logo.png" alt="Vynk" width={90} height={29} style={{ objectFit:'contain' }} /></Link>
-        <Link href="/" style={{ fontSize:'13px', color:NM.muted, textDecoration:'none', padding:'8px 16px', background:NM.bg, boxShadow:`3px 3px 8px ${NM.dark}, -2px -2px 6px ${NM.lite}`, borderRadius:'10px' }}>← Back</Link>
+        <Link href="/" style={{ fontSize:'13px', color:C.smoke, textDecoration:'none', padding:'8px 16px', background:C.graphite, boxShadow:`3px 3px 8px ${C.nmDark}, -2px -2px 6px ${C.nmLite}`, borderRadius:'10px' }}>← Back</Link>
       </nav>
       <div style={{ maxWidth:'720px', margin:'0 auto', padding:'56px 48px' }}>
-        <h1 style={{ fontSize:'32px', fontWeight:700, marginBottom:'8px' }}>{title}</h1>
-        <p style={{ color:NM.muted, fontSize:'13px', marginBottom:'40px' }}>Last updated: March 2026</p>
-        <div style={{ display:'flex', flexDirection:'column', gap:'20px', fontSize:'14px', lineHeight:'1.7', color:NM.text }}>{children}</div>
+        <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'12px' }}>
+          <div style={{ width:'28px', height:'1px', background:C.gold }} />
+          <span style={{ fontSize:'10px', fontWeight:700, color:C.gold, letterSpacing:'.1em', textTransform:'uppercase' }}>Legal</span>
+        </div>
+        <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:'36px', fontWeight:800, marginBottom:'8px', color:C.silver }}>{title}</h1>
+        <p style={{ color:C.smoke, fontSize:'13px', marginBottom:'48px', fontWeight:300 }}>Last updated: March 2026</p>
+        <div style={{ display:'flex', flexDirection:'column', gap:'20px', fontSize:'14px', lineHeight:'1.8', color:C.silver }}>{children}</div>
       </div>
     </main>
   )
 }
 
 const H = ({ children }: { children:React.ReactNode }) => (
-  <h2 style={{ fontSize:'16px', fontWeight:700, color:NM.gold, marginTop:'12px' }}>{children}</h2>
+  <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:'17px', fontWeight:700, color:C.gold, marginTop:'8px' }}>{children}</h2>
 )
 const P = ({ children }: { children:React.ReactNode }) => (
-  <p style={{ color:NM.muted }}>{children}</p>
+  <p style={{ color:C.smoke, fontWeight:300 }}>{children}</p>
 )
 
 export function TermsPage() {
@@ -39,7 +43,7 @@ export function TermsPage() {
       <H>4. Account & ownership</H>
       <P>Your card is tied to your account. You may access and manage it from any device using the same login. You must provide accurate information and may only have one active card per account.</P>
       <H>5. Anti-plagiarism & security</H>
-      <P>Cards are cryptographically linked to the account that created them. Unauthorized transfers or duplication are prohibited. If you believe your identity has been misused, contact us immediately at legal@vynk.app.</P>
+      <P>Cards are cryptographically linked to the account that created them. Unauthorized transfers or duplication are prohibited. Contact legal@vynk.app if you believe your identity has been misused.</P>
       <H>6. Governing law</H>
       <P>These Terms are governed by applicable international digital commerce law. Contact: legal@vynk.app</P>
     </Layout>
