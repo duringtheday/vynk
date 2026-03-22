@@ -40,14 +40,14 @@ const CHECKS = [
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState(0)
-  const sectionsRef = useRef<HTMLDivElement[]>([])
+  const sectionsRef = useRef<HTMLElement[]>([])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
         entries.forEach(e => {
           if (e.isIntersecting) {
-            const idx = sectionsRef.current.indexOf(e.target as HTMLDivElement)
+            const idx = sectionsRef.current.indexOf(e.target as HTMLElement)
             if (idx !== -1) setActiveSection(idx)
           }
         })
