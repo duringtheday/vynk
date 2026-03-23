@@ -57,7 +57,7 @@ function NmBtn({children,onClick,gold,sm,danger}:{children:React.ReactNode;onCli
       onMouseUp={()=>setPressed(false)}
       onMouseLeave={()=>setPressed(false)}
       style={{
-        padding:sm?'7px 14px':'10px 20px', borderRadius:'10px', border:'none',
+        padding:sm?'7px 14px':'10px 20px', borderRadius:'10px',
         background: gold ? `linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})` : C.g,
         color: gold?C.carbon:danger?'#ef4444':C.smoke,
         fontSize:'12px', fontWeight:gold?700:500, cursor:'pointer',
