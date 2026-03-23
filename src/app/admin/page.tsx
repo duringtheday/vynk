@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 
 const C = {
@@ -83,7 +83,8 @@ function Tbl({heads,rows}:{heads:string[];rows:React.ReactNode[][]}) {
 }
 
 export default function AdminDashboard() {
-  const [active,setActive]       = useState<Section>('overview')
+  const searchParams = useSearchParams()
+  const [active,setActive]       = useState<Section>((searchParams.get('s') as Section)||'overview')
   const [data,setData]           = useState<any>(null)
   const [loading,setLoading]     = useState(true)
   const [timer,setTimer]         = useState(15*60)
@@ -169,7 +170,7 @@ export default function AdminDashboard() {
                 {NAV.filter(n=>n.g===g).map(n=>{
                   const on=active===n.s
                   return (
-                    <button key={n.s} onClick={()=>setActive(n.s)} style={{
+                    <button key={n.s} onClick={()=>{setActive(n.s);window.history.replaceState(null,'',`/admin?s=${n.s}`)}} style={{
                       display:'flex',alignItems:'center',gap:'10px',
                       width:'100%',
                       padding:collapsed?'11px 0':'10px 10px',
@@ -516,34 +517,60 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
 
 function PromoSection({data,reload}:{data:any;reload:()=>void}) {
   const inpSt:React.CSSProperties={padding:'9px 12px',border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',background:C.g,color:C.silver,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",outline:'none',boxShadow:insetSm,width:'100%'}
-  const [form,setForm]=useState({code:'',discountType:'percent',discountValue:20,appliesTo:'both',maxUses:''})
+  const EMPTY = {code:'',discountType:'percent',discountValue:20,appliesTo:'both',maxUses:'',expiresAt:''}
+  const [form,setForm]=useState(EMPTY)
+  const [editing,setEditing]=useState<any>(null)
   const [loading,setLoading]=useState(false)
 
-  async function create(){
+  function startEdit(p:any){
+    setEditing(p)
+    setForm({
+      code:p.code, discountType:p.discount_type, discountValue:p.discount_value,
+      appliesTo:p.applies_to, maxUses:p.max_uses||'',
+      expiresAt:p.expires_at?new Date(p.expires_at).toISOString().slice(0,10):'',
+    })
+  }
+  function cancelEdit(){ setEditing(null); setForm(EMPTY) }
+
+  async function save(){
     if(!form.code){toast.error('Enter a code');return}
     setLoading(true)
-    const r=await fetch('/api/admin/dashboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)})
-    r.ok?toast.success('Promo created!'):toast.error('Error')
-    reload(); setLoading(false)
+    const body = {
+      ...form,
+      discountValue: Number(form.discountValue),
+      maxUses: form.maxUses?Number(form.maxUses):null,
+      expiresAt: form.expiresAt||null,
+    }
+    if(editing){
+      const r=await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,id:editing.id,action:'update'})})
+      r.ok?toast.success('Updated!'):toast.error('Error updating')
+      setEditing(null)
+    } else {
+      const r=await fetch('/api/admin/dashboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      r.ok?toast.success('Created!'):toast.error('Error creating')
+    }
+    setForm(EMPTY); reload(); setLoading(false)
   }
 
-  async function toggle(id:string,current:boolean){
-    await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,isActive:!current})})
+  async function toggleActive(id:string,current:boolean){
+    await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,isActive:!current,action:'toggle'})})
     reload()
   }
-  async function deletePromo(id:string){
-    if(!confirm("Delete this promo code?")) return
-    await fetch("/api/admin/dashboard",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})})
-    reload()
+
+  async function del(id:string,code:string){
+    if(!confirm(`Delete promo code "${code}"?`)) return
+    await fetch('/api/admin/dashboard',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})})
+    toast.success('Deleted'); reload()
   }
 
   return (
     <div>
-      <Panel title="Create promo code">
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto',gap:'10px',alignItems:'end'}}>
+      <Panel title={editing?`Editing: ${editing.code}`:'Create promo code'}
+        action={editing&&<button onClick={cancelEdit} style={{padding:'5px 12px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'none',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>}>
+        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr auto',gap:'10px',alignItems:'end'}}>
           <div>
             <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Code</label>
-            <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="VYNK50" style={inpSt}/>
+            <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="VYNK50" style={inpSt} disabled={!!editing}/>
           </div>
           <div>
             <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Type</label>
@@ -561,24 +588,33 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
             <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Max uses</label>
             <input type="number" placeholder="∞" value={form.maxUses} onChange={e=>setForm(f=>({...f,maxUses:e.target.value}))} style={inpSt}/>
           </div>
-          <button onClick={create} disabled={loading}
+          <div>
+            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Expires</label>
+            <input type="date" value={form.expiresAt} onChange={e=>setForm(f=>({...f,expiresAt:e.target.value}))} style={{...inpSt,colorScheme:'dark'}}/>
+          </div>
+          <button onClick={save} disabled={loading}
             style={{padding:'9px 18px',borderRadius:'10px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'12px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",boxShadow:goldBox,whiteSpace:'nowrap',height:'38px'}}>
-            {loading?'…':'+ Create'}
+            {loading?'…':editing?'Save':'+ Create'}
           </button>
         </div>
         <p style={{fontSize:'11px',color:C.smoke,marginTop:'10px',opacity:.7}}>
           Tip: <strong style={{color:C.gold}}>100% free</strong> — test users get the card without paying. Works for new cards AND renewals.
         </p>
       </Panel>
-      <Panel title={`Active codes (${data.promos?.length||0})`}>
-        <Tbl heads={['Code','Discount','Uses','Applies To','Status','Action']}
+      <Panel title={`Promo codes (${data.promos?.length||0})`}>
+        <Tbl heads={['Code','Discount','Uses','Applies To','Expires','Status','Actions']}
           rows={(data.promos||[]).map((p:any)=>[
             <span style={{fontFamily:'monospace',fontWeight:700,color:C.gold,fontSize:'13px'}}>{p.code}</span>,
             `${p.discount_value}${p.discount_type==='percent'?'%':p.discount_type==='free'?' free':'$'} off`,
             `${p.uses_count}${p.max_uses?` / ${p.max_uses}`:''}`,
             p.applies_to,
+            p.expires_at?new Date(p.expires_at).toLocaleDateString():<span style={{color:C.smoke,opacity:.5}}>No expiry</span>,
             <Bdg t={p.is_active?'Active':'Off'} type={p.is_active?'green':'gray'}/>,
-            <button onClick={()=>toggle(p.id,p.is_active)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{p.is_active?'Disable':'Enable'}</button>,
+            <div style={{display:'flex',gap:'4px'}}>
+              <button onClick={()=>startEdit(p)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
+              <button onClick={()=>toggleActive(p.id,p.is_active)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${p.is_active?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:p.is_active?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{p.is_active?'Disable':'Enable'}</button>
+              <button onClick={()=>del(p.id,p.code)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',color:'#ef4444',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
+            </div>,
           ])}/>
       </Panel>
     </div>

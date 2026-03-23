@@ -122,8 +122,18 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!await checkAuth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id, isActive } = await req.json()
-  await db.update(promoCodes).set({ isActive }).where(eq(promoCodes.id, id))
+  const body = await req.json()
+  if (body.action === 'update') {
+    await db.update(promoCodes).set({
+      discountType: body.discountType,
+      discountValue: Number(body.discountValue)||0,
+      appliesTo: body.appliesTo||'both',
+      maxUses: body.maxUses ? Number(body.maxUses) : null,
+      expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+    }).where(eq(promoCodes.id, body.id))
+  } else {
+    await db.update(promoCodes).set({ isActive: body.isActive }).where(eq(promoCodes.id, body.id))
+  }
   return NextResponse.json({ ok: true })
 }
 
