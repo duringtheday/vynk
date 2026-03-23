@@ -380,7 +380,7 @@ export default function BuilderPage() {
   const [showWarning, setShowWarning] = useState(false)
   const [paidChanges, setPaidChanges] = useState<string[]>([])
   const [activeCat, setActiveCat]   = useState('Premium')
-  const [activeTab, setActiveTab]   = useState<'front'|'back'|'design'>('front')
+  const [activeTab, setActiveTab]   = useState<'front'|'back'|'design'|'preview'>('front')
   const [photoPos, setPhotoPos]     = useState<Pos>({x:72, y:10})
   const [logoPos, setLogoPos]       = useState<Pos>({x:10, y:72})
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -500,6 +500,19 @@ export default function BuilderPage() {
 
   // Mobile: bottom sheet height
   const [sheetH, setSheetH] = useState(220)
+  const [showRotateHint, setShowRotateHint] = useState(true)
+  const [isLandscape, setIsLandscape] = useState(false)
+
+  useEffect(()=>{
+    const checkOri = () => {
+      const land = window.innerWidth > window.innerHeight
+      setIsLandscape(land)
+      if(land) setShowRotateHint(false)
+    }
+    checkOri()
+    window.addEventListener("resize", checkOri)
+    return () => window.removeEventListener("resize", checkOri)
+  },[])
   const sheetDragRef = useRef<{startY:number;startH:number}|null>(null)
 
   function onSheetDragStart(e:React.TouchEvent) {
@@ -524,6 +537,29 @@ export default function BuilderPage() {
   if (isMobile) return (
     <div style={{height:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif",overflow:'hidden',position:'relative'}}>
 
+      {/* Rotate hint overlay */}
+      {showRotateHint && !isLandscape && (
+        <div
+          onClick={()=>setShowRotateHint(false)}
+          onTouchStart={()=>setShowRotateHint(false)}
+          style={{position:"fixed",inset:0,zIndex:200,background:"rgba(5,6,7,0.92)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"24px",cursor:"pointer"}}>
+          <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="35" y="10" width="50" height="80" rx="8" fill="none" stroke="rgba(212,168,79,0.2)" strokeWidth="2"/>
+            <rect x="39" y="14" width="42" height="72" rx="6" fill="rgba(212,168,79,0.04)"/>
+            <circle cx="60" cy="78" r="3" fill="rgba(212,168,79,0.4)"/>
+            <path d="M 90 50 C 100 30 110 40 105 55" stroke="#D4A84F" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+            <path d="M 105 55 L 108 48 M 105 55 L 99 53" stroke="#D4A84F" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M 30 50 C 20 30 10 40 15 55" stroke="rgba(212,168,79,0.4)" strokeWidth="2" strokeLinecap="round" fill="none"/>
+            <path d="M 15 55 L 12 48 M 15 55 L 21 53" stroke="rgba(212,168,79,0.4)" strokeWidth="2" strokeLinecap="round"/>
+            <rect x="10" y="35" width="80" height="50" rx="8" fill="none" stroke="#BFC3C9" strokeWidth="2" strokeDasharray="4 3" opacity="0.3"/>
+          </svg>
+          <div style={{textAlign:"center",padding:"0 32px"}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:"18px",color:"#D4A84F",marginBottom:"8px"}}>Rotate for better editing</div>
+            <div style={{fontSize:"13px",color:"#6F737A",lineHeight:1.6}}>Turn your device horizontally<br/>for full builder experience</div>
+          </div>
+          <div style={{padding:"10px 24px",background:"rgba(212,168,79,0.08)",border:"1px solid rgba(212,168,79,0.2)",borderRadius:"20px",fontSize:"12px",color:"#D4A84F",fontWeight:600}}>Tap anywhere to dismiss</div>
+        </div>
+      )}
       {/* Mobile topbar — minimal */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',background:C.g,boxShadow:`0 3px 12px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0,zIndex:10}}>
         <div style={{padding:'6px 10px',background:C.g,boxShadow:raised,borderRadius:'10px',border:'1px solid rgba(212,168,79,0.07)'}}>
