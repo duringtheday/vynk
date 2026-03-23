@@ -526,7 +526,7 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
     setEditing(p)
     setForm({
       code:p.code, discountType:p.discount_type, discountValue:p.discount_value,
-      appliesTo:p.applies_to, maxUses:p.max_uses||'',
+      appliesTo:(p.appliesTo??p.applies_to), maxUses:p.max_uses||'',
       expiresAt:p.expires_at?new Date(p.expires_at).toISOString().slice(0,10):'',
     })
   }
@@ -605,14 +605,14 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
         <Tbl heads={['Code','Discount','Uses','Applies To','Expires','Status','Actions']}
           rows={(data.promos||[]).map((p:any)=>[
             <span style={{fontFamily:'monospace',fontWeight:700,color:C.gold,fontSize:'13px'}}>{p.code}</span>,
-            `${p.discount_value}${p.discount_type==='percent'?'%':p.discount_type==='free'?' free':'$'} off`,
-            `${p.uses_count}${p.max_uses?` / ${p.max_uses}`:''}`,
-            p.applies_to,
-            p.expires_at?new Date(p.expires_at).toLocaleDateString():<span style={{color:C.smoke,opacity:.5}}>No expiry</span>,
-            <Bdg t={p.is_active?'Active':'Off'} type={p.is_active?'green':'gray'}/>,
+            `${p.discountValue??p.discount_value}${(p.discountType??p.discount_type)==='percent'?'%':(p.discountType??p.discount_type)==='free'?' free':'$'} off`,
+            `${p.usesCount??p.uses_count}${(p.maxUses??p.max_uses)?` / ${p.maxUses??p.max_uses}`:''}`,
+            (p.appliesTo??p.applies_to),
+            (p.expiresAt??p.expires_at)?new Date(p.expiresAt??p.expires_at).toLocaleDateString():<span style={{color:C.smoke,opacity:.5}}>No expiry</span>,
+            <Bdg t={(p.isActive??p.is_active)?'Active':'Off'} type={(p.isActive??p.is_active)?'green':'gray'}/>,
             <div style={{display:'flex',gap:'4px'}}>
               <button onClick={()=>startEdit(p)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
-              <button onClick={()=>toggleActive(p.id,p.is_active)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${p.is_active?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:p.is_active?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{p.is_active?'Disable':'Enable'}</button>
+              <button onClick={()=>toggleActive(p.id,p.isActive??p.is_active)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${(p.isActive??p.is_active)?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:p.is_active?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{(p.isActive??p.is_active)?'Disable':'Enable'}</button>
               <button onClick={()=>del(p.id,p.code)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',color:'#ef4444',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
             </div>,
           ])}/>
