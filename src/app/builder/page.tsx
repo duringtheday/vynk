@@ -383,6 +383,15 @@ export default function BuilderPage() {
   const [activeTab, setActiveTab]   = useState<'front'|'back'|'design'>('front')
   const [photoPos, setPhotoPos]     = useState<Pos>({x:72, y:10})
   const [logoPos, setLogoPos]       = useState<Pos>({x:10, y:72})
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile]     = useState(false)
+
+  useEffect(()=>{
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  },[])
   const [dragging, setDragging]     = useState<'photo'|'logo'|null>(null)
   const dragStart = useRef<{mx:number;my:number;ox:number;oy:number}|null>(null)
 
@@ -493,12 +502,19 @@ export default function BuilderPage() {
 
       {/* NAV */}
       <nav style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 20px',background:C.g,boxShadow:`0 4px 16px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
-        <div style={{padding:'8px 14px',background:C.g,boxShadow:raised,borderRadius:'12px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center'}}>
-          <img src="/logo.png" alt="Vynk" style={{width:'80px',height:'auto',display:'block'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+          {isMobile&&(
+            <button onClick={()=>setSidebarOpen(o=>!o)} style={{padding:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',color:C.smoke,fontSize:'16px',cursor:'pointer',lineHeight:1}}>
+              {sidebarOpen?'✕':'☰'}
+            </button>
+          )}
+          <div style={{padding:'8px 14px',background:C.g,boxShadow:raised,borderRadius:'12px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center'}}>
+            <img src="/logo.png" alt="Vynk" style={{width:'80px',height:'auto',display:'block'}}/>
+          </div>
         </div>
         <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
           <div style={{fontSize:'11px',color:C.smoke,padding:'6px 12px',background:C.g,boxShadow:insetSm,borderRadius:'8px'}}>Card Builder</div>
-          {existingCard&&<Link href={`/c/${existingCard.slug}`} style={{fontSize:'11px',color:C.gold,textDecoration:'none',padding:'6px 12px',background:C.g,boxShadow:raisedSm,borderRadius:'8px'}}>View card →</Link>}
+          {existingCard&&<Link href={`/c/${existingCard.slug}`} style={{fontSize:'11px',color:C.gold,textDecoration:'none',padding:'6px 12px',background:C.g,boxShadow:raisedSm,borderRadius:'8px'}}>View →</Link>}
         </div>
       </nav>
 
@@ -523,8 +539,21 @@ export default function BuilderPage() {
       {/* MAIN */}
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
 
-        {/* LEFT PANEL */}
-        <aside style={{width:'320px',flexShrink:0,background:C.g,borderRight:'1px solid rgba(255,255,255,0.03)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        {/* LEFT PANEL — overlay on mobile */}
+        {isMobile&&sidebarOpen&&(
+          <div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.7)',zIndex:40}}/>
+        )}
+        <aside style={{
+          width:'320px', flexShrink:0, background:C.g,
+          borderRight:'1px solid rgba(255,255,255,0.03)',
+          display:'flex', flexDirection:'column', overflow:'hidden',
+          ...(isMobile ? {
+            position:'fixed', top:0, left:0, bottom:0, zIndex:50,
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform .25s ease',
+            boxShadow: `8px 0 32px ${C.nd}`,
+          } : {}),
+        }}>
           <div style={{display:'flex',gap:'6px',padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
             {tabBtn('front','Front')}
             {tabBtn('back','Back')}
