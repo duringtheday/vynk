@@ -497,29 +497,265 @@ export default function BuilderPage() {
   // SVG overlay as data URI
   const svgOverlay = tpl.svg ? `url("data:image/svg+xml;utf8,${encodeURIComponent(tpl.svg)}")` : 'none'
 
+
+  // Mobile: bottom sheet height
+  const [sheetH, setSheetH] = useState(220)
+  const sheetDragRef = useRef<{startY:number;startH:number}|null>(null)
+
+  function onSheetDragStart(e:React.TouchEvent) {
+    sheetDragRef.current = {startY: e.touches[0].clientY, startH: sheetH}
+  }
+  function onSheetDragMove(e:React.TouchEvent) {
+    if(!sheetDragRef.current) return
+    const dy = sheetDragRef.current.startY - e.touches[0].clientY
+    const nh = Math.max(80, Math.min(window.innerHeight * 0.85, sheetDragRef.current.startH + dy))
+    setSheetH(nh)
+  }
+  function onSheetDragEnd() { sheetDragRef.current = null }
+
+  const MOBILE_TABS = [
+    {id:'front',icon:'👤',label:'Info'},
+    {id:'back', icon:'📝',label:'Content'},
+    {id:'design',icon:'🎨',label:'Design'},
+    {id:'preview',icon:'👁',label:'Preview'},
+  ] as const
+
+  // ── MOBILE LAYOUT ──────────────────────────────────────────────
+  if (isMobile) return (
+    <div style={{height:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif",overflow:'hidden',position:'relative'}}>
+
+      {/* Mobile topbar — minimal */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 14px',background:C.g,boxShadow:`0 3px 12px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0,zIndex:10}}>
+        <div style={{padding:'6px 10px',background:C.g,boxShadow:raised,borderRadius:'10px',border:'1px solid rgba(212,168,79,0.07)'}}>
+          <img src="/logo.png" alt="Vynk" style={{height:'22px',width:'auto',display:'block'}}/>
+        </div>
+        <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+          {existingCard&&<Link href={`/c/${existingCard.slug}`} style={{fontSize:'11px',color:C.gold,textDecoration:'none',padding:'5px 10px',background:C.g,boxShadow:raisedSm,borderRadius:'8px'}}>View →</Link>}
+          <button onClick={()=>submit()} disabled={submitting}
+            style={{padding:'7px 14px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'10px',fontWeight:700,fontSize:'11px',border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif",opacity:submitting?.7:1}}>
+            {submitting?'…':existingCard?'Save':'$20'}
+          </button>
+        </div>
+      </div>
+
+      {/* Warning modal */}
+      {showWarning&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.9)',zIndex:100,display:'flex',alignItems:'flex-end',padding:'0'}}>
+          <div style={{background:C.g,boxShadow:`0 -8px 32px ${C.nd}`,borderRadius:'24px 24px 0 0',padding:'28px 24px',width:'100%',border:'1px solid rgba(212,168,79,0.08)'}}>
+            <h2 style={{fontSize:'16px',fontWeight:700,marginBottom:'8px',color:C.silver,fontFamily:"'Syne',sans-serif"}}>⚠️ Identity change — $10</h2>
+            <p style={{color:C.smoke,fontSize:'13px',marginBottom:'20px',lineHeight:1.6}}>Changed: <span style={{color:C.gold}}>{paidChanges.map(k=>FIELD_LABELS[k]||k).join(', ')}</span></p>
+            <div style={{display:'flex',gap:'10px'}}>
+              <button onClick={()=>{setShowWarning(false);setPaidChanges([])}} style={{flex:1,padding:'12px',background:C.g,boxShadow:raisedSm,border:'none',borderRadius:'12px',color:C.smoke,fontSize:'13px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+              <button onClick={()=>{setShowWarning(false);submit(true)}} style={{flex:1,padding:'12px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'12px',fontSize:'13px',fontWeight:700,border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif"}}>Pay $10</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview area — fills space above bottom sheet */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'12px',overflow:'hidden',paddingBottom:`${sheetH + 56}px`}}>
+        <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 70% 50% at 50% 40%, ${tpl.glow} 0%, transparent 70%)`,pointerEvents:'none'}}/>
+        <div style={{background:C.g,boxShadow:`8px 8px 24px ${C.nd},-5px -5px 16px ${C.nl}`,borderRadius:'20px',padding:'12px',border:`1px solid ${tpl.border}`,width:'100%',maxWidth:'360px',position:'relative',zIndex:1}}>
+          <div style={{perspective:'800px'}}>
+            <div ref={cardRef} onClick={()=>!dragging&&setIsFlipped(f=>!f)}
+              style={{position:'relative',transformStyle:'preserve-3d',transition:dragging?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',minHeight:'180px',borderRadius:'16px',userSelect:'none'}}>
+
+              {/* FRONT */}
+              <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',background:cardBg,borderRadius:'16px',padding:'20px',color:design.textColor,minHeight:'180px',display:'flex',flexDirection:'column',justifyContent:'space-between',fontFamily:fontCss,position:'relative',overflow:'hidden'}}>
+                {tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
+                <div style={{position:'absolute',inset:0,backgroundImage:svgOverlay,backgroundSize:'100% 100%',pointerEvents:'none'}}/>
+                <div style={{position:'absolute',inset:0,borderRadius:'16px',border:`1px solid ${tpl.border}`,pointerEvents:'none'}}/>
+                {form.photoUrl&&(
+                  <div onMouseDown={e=>startDrag(e,'photo')} style={{position:'absolute',left:`${photoPos.x}%`,top:`${photoPos.y}%`,width:'44px',height:'44px',borderRadius:'50%',overflow:'hidden',border:`2px solid ${design.accent}60`,cursor:'grab',zIndex:10}}>
+                    <img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} draggable={false}/>
+                  </div>
+                )}
+                {form.logoUrl&&(
+                  <div onMouseDown={e=>startDrag(e,'logo')} style={{position:'absolute',left:`${logoPos.x}%`,top:`${logoPos.y}%`,cursor:'grab',zIndex:10}}>
+                    <img src={form.logoUrl} alt="logo" style={{height:'20px',objectFit:'contain'}} draggable={false}/>
+                  </div>
+                )}
+                <div style={{position:'relative',zIndex:1}}>
+                  <div style={{fontSize:'7px',fontWeight:700,letterSpacing:'.12em',opacity:.3,textTransform:'uppercase',marginBottom:'12px',color:design.accent}}>VYNK</div>
+                  <div style={{fontSize:'18px',fontWeight:700,lineHeight:1.2}}>{form.fullName||'Your Name'}</div>
+                  <div style={{fontSize:'11px',opacity:.7,marginTop:'3px'}}>{[form.title,form.company].filter(Boolean).join(' · ')||'Title · Company'}</div>
+                </div>
+                {!form.photoUrl&&<div style={{position:'absolute',top:'16px',right:'16px',width:'38px',height:'38px',borderRadius:'50%',background:`${design.accent}18`,border:`2px solid ${design.accent}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:700,color:design.accent}}>{initials}</div>}
+                <div style={{position:'relative',zIndex:1}}>
+                  {form.email&&<div style={{fontSize:'10px',opacity:.55}}>{form.email}</div>}
+                  <div style={{marginTop:'10px',width:'50%',height:'1px',background:`linear-gradient(90deg,${design.accent}60,transparent)`}}/>
+                </div>
+              </div>
+
+              {/* BACK */}
+              <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',position:'absolute',top:0,left:0,right:0,bottom:0,background:cardBg,borderRadius:'16px',padding:'20px',color:design.textColor,minHeight:'180px',display:'flex',flexDirection:'column',gap:'10px',fontFamily:fontCss,filter:'brightness(0.85)',overflow:'hidden'}}>
+                {tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
+                <div style={{position:'absolute',inset:0,backgroundImage:svgOverlay,backgroundSize:'100% 100%',pointerEvents:'none'}}/>
+                <div style={{position:'relative',zIndex:1}}>
+                  <div style={{fontSize:'7px',opacity:.3,fontWeight:700,letterSpacing:'.12em',textTransform:'uppercase',marginBottom:'8px',color:design.accent}}>SERVICES</div>
+                  {form.services&&<div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{form.services.split(',').filter(Boolean).map(s=><span key={s} style={{padding:'3px 8px',borderRadius:'20px',fontSize:'9px',fontWeight:600,background:`${design.accent}18`,border:`1px solid ${design.accent}35`,color:design.accent}}>{s.trim()}</span>)}</div>}
+                  {form.bio&&<div style={{fontSize:'10px',opacity:.6,lineHeight:1.6,marginTop:'8px'}}>{form.bio}</div>}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:'8px',padding:'0 2px'}}>
+            <span style={{fontSize:'9px',color:C.smoke}}><span style={{color:C.gold,fontWeight:700}}>{tpl.label}</span> · {FONTS.find(f=>f.id===design.font)?.name}</span>
+            <span style={{fontSize:'9px',color:C.smoke}}>tap ↻</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BOTTOM SHEET ── */}
+      <div style={{
+        position:'fixed', bottom:0, left:0, right:0, zIndex:30,
+        background:C.g, borderRadius:'20px 20px 0 0',
+        boxShadow:`0 -8px 32px ${C.nd}`,
+        border:'1px solid rgba(255,255,255,0.04)',
+        height:`${sheetH}px`,
+        display:'flex', flexDirection:'column',
+        transition: sheetDragRef.current ? 'none' : 'height .2s',
+      }}>
+        {/* Drag handle */}
+        <div
+          onTouchStart={onSheetDragStart}
+          onTouchMove={onSheetDragMove}
+          onTouchEnd={onSheetDragEnd}
+          style={{padding:'10px 0 4px',display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',cursor:'grab',flexShrink:0}}>
+          <div style={{width:'36px',height:'4px',borderRadius:'2px',background:C.smoke,opacity:.3}}/>
+        </div>
+
+        {/* Tab bar */}
+        <div style={{display:'flex',gap:'6px',padding:'0 12px 8px',flexShrink:0}}>
+          {MOBILE_TABS.map(t=>(
+            <button key={t.id} onClick={()=>setActiveTab(t.id as any)}
+              style={{flex:1,padding:'8px 4px',borderRadius:'10px',border:'none',background:activeTab===t.id?`rgba(212,168,79,0.1)`:C.g,boxShadow:activeTab===t.id?insetSm:raisedSm,color:activeTab===t.id?C.gold:C.smoke,fontSize:'9px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',transition:'all .15s'}}>
+              <span style={{fontSize:'14px'}}>{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sheet content */}
+        <div style={{flex:1,overflowY:'auto',padding:'0 12px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+
+          {activeTab==='front'&&(
+            <>
+              <div style={{fontSize:'9px',color:C.gold,fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase'}}>Identity — $10 to change</div>
+              <input style={nmInp} placeholder="Full Name *" value={form.fullName} onChange={e=>set('fullName',e.target.value)}/>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                <input style={nmInp} placeholder="Title" value={form.title} onChange={e=>set('title',e.target.value)}/>
+                <input style={nmInp} placeholder="Company" value={form.company} onChange={e=>set('company',e.target.value)}/>
+              </div>
+              <input style={nmInp} placeholder="Email" value={form.email} onChange={e=>set('email',e.target.value)}/>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                <input style={nmInp} placeholder="Phone" value={form.phone} onChange={e=>set('phone',e.target.value)}/>
+                <input style={nmInp} placeholder="WhatsApp" value={form.whatsapp} onChange={e=>set('whatsapp',e.target.value)}/>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                <div style={{display:'flex',gap:'4px'}}>
+                  <button onClick={()=>photoRef.current?.click()} style={{flex:1,padding:'8px',background:C.g,boxShadow:form.photoUrl?insetSm:raisedSm,border:`1px solid ${form.photoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'8px',color:form.photoUrl?C.gold:C.smoke,fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{form.photoUrl?'✓ Photo':'📷 Photo'}</button>
+                  {form.photoUrl&&<button onClick={()=>set('photoUrl','')} style={{padding:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',borderRadius:'8px',color:'#ef4444',fontSize:'11px',cursor:'pointer'}}>✕</button>}
+                  <input ref={photoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'photoUrl')}/>
+                </div>
+                <div style={{display:'flex',gap:'4px'}}>
+                  <button onClick={()=>logoRef.current?.click()} style={{flex:1,padding:'8px',background:C.g,boxShadow:form.logoUrl?insetSm:raisedSm,border:`1px solid ${form.logoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'8px',color:form.logoUrl?C.gold:C.smoke,fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{form.logoUrl?'✓ Logo':'🔷 Logo'}</button>
+                  {form.logoUrl&&<button onClick={()=>set('logoUrl','')} style={{padding:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',borderRadius:'8px',color:'#ef4444',fontSize:'11px',cursor:'pointer'}}>✕</button>}
+                  <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab==='back'&&(
+            <>
+              <div style={{fontSize:'9px',color:'#4ade80',fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase'}}>Content — free</div>
+              <input style={nmInp} placeholder="Tagline" value={form.tagline} onChange={e=>set('tagline',e.target.value)}/>
+              <textarea style={{...nmInp,height:'60px',resize:'none',lineHeight:1.5}} value={form.bio} onChange={e=>set('bio',e.target.value)} placeholder="Bio..."/>
+              <input style={nmInp} placeholder="Services (comma-separated)" value={form.services} onChange={e=>set('services',e.target.value)}/>
+              <input style={nmInp} placeholder="Website" value={form.website} onChange={e=>set('website',e.target.value)}/>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                {(['instagram','linkedin','twitter','telegram','tiktok','youtube'] as const).map(k=>(
+                  <input key={k} style={nmInp} placeholder={`@${k}`} value={form[k]} onChange={e=>set(k,e.target.value)}/>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab==='design'&&(
+            <>
+              <div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
+                {CATS.map(cat=>(
+                  <button key={cat} onClick={()=>setActiveCat(cat)} style={{padding:'4px 8px',borderRadius:'20px',border:'none',background:activeCat===cat?`rgba(212,168,79,0.12)`:'rgba(255,255,255,0.04)',color:activeCat===cat?C.gold:C.smoke,fontSize:'10px',fontWeight:activeCat===cat?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'5px'}}>
+                {TEMPLATES.filter(t=>t.cat===activeCat).map(t=>(
+                  <button key={t.id} title={t.label} onClick={()=>applyTemplate(t)}
+                    style={{height:'36px',borderRadius:'8px',cursor:'pointer',background:t.mode==='gradient'?`linear-gradient(135deg,${t.bg},${t.bg2})`:t.bg,border:`2px solid ${design.template===t.id?t.accent:'rgba(255,255,255,0.06)'}`,boxShadow:design.template===t.id?`0 0 0 1px ${t.accent}55`:raisedSm,transition:'all .15s',position:'relative',overflow:'hidden'}}>
+                    {t.svg&&<div style={{position:'absolute',inset:0,backgroundImage:`url("data:image/svg+xml;utf8,${encodeURIComponent(t.svg)}")`,backgroundSize:'cover',opacity:.6}}/>}
+                    <div style={{position:'absolute',bottom:'2px',right:'3px',width:'4px',height:'4px',borderRadius:'50%',background:t.accent,zIndex:1}}/>
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'5px'}}>
+                {FONTS.map(f=>(
+                  <button key={f.id} onClick={()=>setD('font',f.id)} style={{fontFamily:f.css,padding:'6px 4px',borderRadius:'8px',background:C.g,boxShadow:design.font===f.id?insetSm:raisedSm,border:`1px solid ${design.font===f.id?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.font===f.id?C.gold:C.smoke,fontSize:'10px',fontWeight:600,cursor:'pointer',transition:'all .15s',outline:'none'}}>
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'6px'}}>
+                {[{k:'bg',l:'BG'},{k:'bg2',l:'BG2'},{k:'textColor',l:'Text'},{k:'accent',l:'Accent'}].map(({k,l})=>(
+                  <div key={k}>
+                    <div style={{fontSize:'9px',color:C.smoke,marginBottom:'3px',fontWeight:600,textAlign:'center'}}>{l}</div>
+                    <input type="color" value={(design as any)[k]||'#000000'} onChange={e=>setD(k as keyof Design,e.target.value)} style={{width:'100%',height:'28px',borderRadius:'6px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:'6px'}}>
+                <input style={{...nmInp,flex:1,fontSize:'12px',padding:'8px 10px'}} placeholder="Promo code" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
+                <button onClick={validatePromo} style={{padding:'8px 12px',background:C.g,boxShadow:raisedSm,border:'none',borderRadius:'8px',color:promoValid?C.gold:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Apply</button>
+              </div>
+            </>
+          )}
+
+          {activeTab==='preview'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+              <div style={{fontSize:'11px',color:C.smoke,textAlign:'center',opacity:.7}}>Tap the card above to flip it</div>
+              <div style={{padding:'12px',background:C.g,boxShadow:insetSm,borderRadius:'12px',fontSize:'11px',color:C.smoke}}>
+                <div style={{marginBottom:'4px'}}><span style={{color:C.gold,fontWeight:700}}>Template:</span> {tpl.label}</div>
+                <div style={{marginBottom:'4px'}}><span style={{color:C.gold,fontWeight:700}}>Font:</span> {FONTS.find(f=>f.id===design.font)?.name}</div>
+                {existingCard&&<div><span style={{color:C.gold,fontWeight:700}}>Live at:</span> /c/{existingCard.slug}</div>}
+              </div>
+              <button onClick={()=>submit()} disabled={submitting}
+                style={{width:'100%',padding:'14px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'12px',fontWeight:700,fontSize:'14px',border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif",opacity:submitting?.6:1}}>
+                {submitting?'Processing…':existingCard?'Update card':'✨ Generate my card — $20'}
+              </button>
+              <p style={{fontSize:'10px',color:C.smoke,textAlign:'center',opacity:.6}}>{existingCard?'Free changes instant · Identity $10':'One-time · Colors & content free'}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── DESKTOP LAYOUT ─────────────────────────────────────────────
   return (
     <div style={{height:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif",overflow:'hidden'}}>
 
       {/* NAV */}
       <nav style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 20px',background:C.g,boxShadow:`0 4px 16px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
-        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-          {isMobile&&(
-            <button onClick={()=>setSidebarOpen(o=>!o)} style={{padding:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',color:C.smoke,fontSize:'16px',cursor:'pointer',lineHeight:1}}>
-              {sidebarOpen?'✕':'☰'}
-            </button>
-          )}
-          <div style={{padding:'8px 14px',background:C.g,boxShadow:raised,borderRadius:'12px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center'}}>
-            <img src="/logo.png" alt="Vynk" style={{width:'80px',height:'auto',display:'block'}}/>
-          </div>
+        <div style={{padding:'8px 14px',background:C.g,boxShadow:raised,borderRadius:'12px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center'}}>
+          <img src="/logo.png" alt="Vynk" style={{width:'80px',height:'auto',display:'block'}}/>
         </div>
         <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
           <div style={{fontSize:'11px',color:C.smoke,padding:'6px 12px',background:C.g,boxShadow:insetSm,borderRadius:'8px'}}>Card Builder</div>
-          {existingCard&&<Link href={`/c/${existingCard.slug}`} style={{fontSize:'11px',color:C.gold,textDecoration:'none',padding:'6px 12px',background:C.g,boxShadow:raisedSm,borderRadius:'8px'}}>View →</Link>}
+          {existingCard&&<Link href={`/c/${existingCard.slug}`} style={{fontSize:'11px',color:C.gold,textDecoration:'none',padding:'6px 12px',background:C.g,boxShadow:raisedSm,borderRadius:'8px'}}>View card →</Link>}
         </div>
       </nav>
-
-      {/* WARNING MODAL */}
-      {showWarning&&(
         <div style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.88)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
           <div style={{background:C.g,boxShadow:`14px 14px 36px ${C.nd},-8px -8px 24px ${C.nl}`,borderRadius:'24px',padding:'36px',maxWidth:'420px',width:'100%',border:'1px solid rgba(212,168,79,0.08)'}}>
             <div style={{fontSize:'28px',marginBottom:'12px'}}>⚠️</div>
