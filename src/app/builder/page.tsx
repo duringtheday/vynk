@@ -551,16 +551,22 @@ export default function BuilderPage() {
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
                   <div>
                     <label style={lbl}>Photo <span style={{color:C.smoke,fontWeight:400,fontSize:'9px'}}>(drag to reposition)</span></label>
-                    <button onClick={()=>photoRef.current?.click()} style={{width:'100%',padding:'9px',background:C.g,boxShadow:form.photoUrl?insetSm:raisedSm,border:`1px solid ${form.photoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.photoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                      {form.photoUrl?'✓ Photo':'Upload'}
-                    </button>
+                    <div style={{display:'flex',gap:'4px'}}>
+                      <button onClick={()=>photoRef.current?.click()} style={{flex:1,padding:'9px',background:C.g,boxShadow:form.photoUrl?insetSm:raisedSm,border:`1px solid ${form.photoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.photoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                        {form.photoUrl?'✓ Photo':'Upload'}
+                      </button>
+                      {form.photoUrl&&<button onClick={()=>set('photoUrl','')} style={{padding:'9px 10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',borderRadius:'10px',color:'#ef4444',fontSize:'12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",lineHeight:1}}>✕</button>}
+                    </div>
                     <input ref={photoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'photoUrl')}/>
                   </div>
                   <div>
                     <label style={lbl}>Logo <span style={{color:C.smoke,fontWeight:400,fontSize:'9px'}}>(drag to reposition)</span></label>
-                    <button onClick={()=>logoRef.current?.click()} style={{width:'100%',padding:'9px',background:C.g,boxShadow:form.logoUrl?insetSm:raisedSm,border:`1px solid ${form.logoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.logoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                      {form.logoUrl?'✓ Logo':'Upload'}
-                    </button>
+                    <div style={{display:'flex',gap:'4px'}}>
+                      <button onClick={()=>logoRef.current?.click()} style={{flex:1,padding:'9px',background:C.g,boxShadow:form.logoUrl?insetSm:raisedSm,border:`1px solid ${form.logoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.logoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                        {form.logoUrl?'✓ Logo':'Upload'}
+                      </button>
+                      {form.logoUrl&&<button onClick={()=>set('logoUrl','')} style={{padding:'9px 10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',borderRadius:'10px',color:'#ef4444',fontSize:'12px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",lineHeight:1}}>✕</button>}
+                    </div>
                     <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
                   </div>
                 </div>
