@@ -11,11 +11,11 @@ const C = {
 const raised   = `5px 5px 14px ${C.nd}, -3px -3px 10px ${C.nl}`
 const raisedSm = `3px 3px 8px ${C.nd}, -2px -2px 6px ${C.nl}`
 const insetSm  = `inset 2px 2px 6px ${C.nd}, inset -2px -2px 5px ${C.nl}`
-const goldBox  = `4px 4px 12px ${C.nd}, 0 0 18px rgba(212,168,79,0.18)`
+const goldBox  = `4px 4px 14px ${C.nd}, 0 0 22px rgba(212,168,79,0.2)`
 
 type Section = 'overview'|'daily'|'clients'|'orders'|'accounting'|'metrics'|'promos'|'mycard'|'security'|'rules'|'compliance'
 
-const NAV: {s:Section;l:string;g:string;icon:string}[] = [
+const NAV:{s:Section;l:string;g:string;icon:string}[] = [
   {s:'overview',   l:'Overview',            g:'Core',    icon:'◎'},
   {s:'daily',      l:'Daily Report',        g:'Core',    icon:'📅'},
   {s:'clients',    l:'Clients',             g:'Core',    icon:'👥'},
@@ -31,27 +31,50 @@ const NAV: {s:Section;l:string;g:string;icon:string}[] = [
 
 function Metric({l,v,sub,accent}:{l:string;v:string;sub?:string;accent?:string}) {
   return (
-    <div style={{background:C.g,boxShadow:raised,borderRadius:'16px',padding:'20px 18px',border:'1px solid rgba(255,255,255,0.03)'}}>
-      <div style={{fontSize:'10px',fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:C.smoke,marginBottom:'10px'}}>{l}</div>
-      <div style={{fontSize:'28px',fontWeight:800,color:accent||C.silver,fontFamily:"'Syne',sans-serif",lineHeight:1}}>{v}</div>
+    <div style={{background:C.g,boxShadow:raised,borderRadius:'16px',padding:'20px',border:'1px solid rgba(255,255,255,0.025)'}}>
+      <div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:C.smoke,marginBottom:'10px'}}>{l}</div>
+      <div style={{fontSize:'26px',fontWeight:800,color:accent||C.silver,fontFamily:"'Syne',sans-serif",lineHeight:1}}>{v}</div>
       {sub&&<div style={{fontSize:'11px',color:C.smoke,marginTop:'6px'}}>{sub}</div>}
     </div>
   )
 }
 
 function Bdg({t,type}:{t:string;type:'green'|'amber'|'red'|'gray'}) {
-  const map:{[k:string]:[string,string]} = {
+  const m:{[k:string]:[string,string]}={
     green:['rgba(74,222,128,0.1)','#4ade80'],
     amber:[`rgba(212,168,79,0.1)`,C.gold],
     red:['rgba(239,68,68,0.1)','#ef4444'],
     gray:['rgba(255,255,255,0.06)',C.smoke]
   }
-  return <span style={{background:map[type][0],color:map[type][1],padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:700,border:`1px solid ${map[type][1]}33`}}>{t}</span>
+  return <span style={{background:m[type][0],color:m[type][1],padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:700,border:`1px solid ${m[type][1]}33`}}>{t}</span>
+}
+
+function NmBtn({children,onClick,gold,sm,danger}:{children:React.ReactNode;onClick?:()=>void;gold?:boolean;sm?:boolean;danger?:boolean}) {
+  const [pressed,setPressed]=useState(false)
+  return (
+    <button onClick={onClick}
+      onMouseDown={()=>setPressed(true)}
+      onMouseUp={()=>setPressed(false)}
+      onMouseLeave={()=>setPressed(false)}
+      style={{
+        padding:sm?'7px 14px':'10px 20px', borderRadius:'10px', border:'none',
+        background: gold ? `linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})` : C.g,
+        color: gold?C.carbon:danger?'#ef4444':C.smoke,
+        fontSize:'12px', fontWeight:gold?700:500, cursor:'pointer',
+        fontFamily:"'DM Sans',sans-serif",
+        boxShadow: pressed ? insetSm : gold ? goldBox : raisedSm,
+        transition:'all .1s', outline:'none',
+        border: danger ? '1px solid rgba(239,68,68,0.2)' : 'none',
+        transform: pressed ? 'scale(0.98)' : 'scale(1)',
+      }}>
+      {children}
+    </button>
+  )
 }
 
 function Panel({children,title,action}:{children:React.ReactNode;title?:string;action?:React.ReactNode}) {
   return (
-    <div style={{background:C.g,boxShadow:raised,borderRadius:'18px',padding:'22px',border:'1px solid rgba(255,255,255,0.03)',marginBottom:'16px'}}>
+    <div style={{background:C.g,boxShadow:raised,borderRadius:'18px',padding:'22px',border:'1px solid rgba(255,255,255,0.025)',marginBottom:'16px'}}>
       {(title||action)&&(
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'18px'}}>
           {title&&<div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:'14px',color:C.silver}}>{title}</div>}
@@ -64,7 +87,7 @@ function Panel({children,title,action}:{children:React.ReactNode;title?:string;a
 }
 
 function Tbl({heads,rows}:{heads:string[];rows:React.ReactNode[][]}) {
-  if (!rows.length) return <div style={{color:C.smoke,fontSize:'13px',textAlign:'center',padding:'32px 0'}}>No data yet</div>
+  if(!rows.length) return <div style={{color:C.smoke,fontSize:'13px',textAlign:'center',padding:'32px 0',opacity:.6}}>No data yet</div>
   return (
     <div style={{overflowX:'auto'}}>
       <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
@@ -84,27 +107,27 @@ function Tbl({heads,rows}:{heads:string[];rows:React.ReactNode[][]}) {
 }
 
 export default function AdminDashboard() {
-  const [active, setActive]   = useState<Section>('overview')
-  const [data, setData]       = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [timer, setTimer]     = useState(15*60)
-  const [collapsed, setCollapsed] = useState(false)
+  const [active,setActive]   = useState<Section>('overview')
+  const [data,setData]       = useState<any>(null)
+  const [loading,setLoading] = useState(true)
+  const [timer,setTimer]     = useState(15*60)
+  const [collapsed,setCollapsed] = useState(false)
   const router = useRouter()
 
-  const load = useCallback(async (s: Section) => {
+  const load = useCallback(async(s:Section)=>{
     setLoading(true); setData(null)
     try {
       const res = await fetch(`/api/admin/dashboard?section=${s}`)
-      if (res.status===401){router.push('/admin/login');return}
+      if(res.status===401){router.push('/admin/login');return}
       setData(await res.json())
-    } catch { toast.error('Failed to load section') }
+    } catch { toast.error('Failed to load') }
     finally { setLoading(false) }
-  }, [router])
+  },[router])
 
   useEffect(()=>{load(active)},[active,load])
   useEffect(()=>{
     const t=setInterval(()=>setTimer(n=>{if(n<=1){lock();return 0}return n-1}),1000)
-    return ()=>clearInterval(t)
+    return()=>clearInterval(t)
   },[])
 
   async function lock(){
@@ -120,54 +143,44 @@ export default function AdminDashboard() {
   return (
     <div style={{display:'flex',minHeight:'100dvh',background:C.g,fontFamily:"'DM Sans',sans-serif",color:C.silver}}>
 
-      {/* ── SIDEBAR ── */}
+      {/* ─── SIDEBAR ─── */}
       <aside style={{
-        width: collapsed?'64px':'220px',
-        flexShrink:0, background:C.g,
-        boxShadow:`6px 0 20px ${C.nd}`,
-        display:'flex', flexDirection:'column',
+        width:collapsed?'68px':'220px', flexShrink:0, background:C.g,
+        boxShadow:`6px 0 20px ${C.nd}`, display:'flex', flexDirection:'column',
         borderRight:'1px solid rgba(255,255,255,0.025)',
         transition:'width .25s ease', overflow:'hidden',
       }}>
-        {/* Logo container */}
+
+        {/* Logo */}
         <div style={{padding:'14px 12px',borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
-          <div style={{
-            padding: collapsed?'10px':'12px 14px',
-            background:C.g,
-            boxShadow:raised,
-            borderRadius:'14px',
-            border:'1px solid rgba(212,168,79,0.08)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            cursor:'pointer', transition:'all .2s',
-          }} onClick={()=>setCollapsed(c=>!c)}>
-            <img src="/logo.png" alt="Vynk" style={{height:collapsed?'35px':'41px', transition:'height .2s'}}/>
+          <div
+            onClick={()=>setCollapsed(c=>!c)}
+            style={{padding:collapsed?'10px':'12px 14px',background:C.g,boxShadow:raised,borderRadius:'14px',border:'1px solid rgba(212,168,79,0.07)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .2s'}}>
+            <img src="/logo.png" alt="Vynk" style={{width:'100%',height:'auto',maxWidth:collapsed?'28px':'80px',display:'block',transition:'max-width .2s'}}/>
           </div>
-          {!collapsed&&<div style={{fontSize:'9px',color:C.smoke,marginTop:'8px',textAlign:'center',letterSpacing:'.1em',textTransform:'uppercase',fontWeight:700,opacity:.6}}>Owner Dashboard</div>}
+          {!collapsed&&<div style={{fontSize:'9px',color:C.smoke,marginTop:'8px',textAlign:'center',letterSpacing:'.1em',textTransform:'uppercase',fontWeight:700,opacity:.5}}>Owner Dashboard</div>}
         </div>
 
-        {/* Nav items */}
+        {/* Nav */}
         <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'8px 0'}}>
           {groups.map(g=>(
             <div key={g}>
               {!collapsed&&<div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(111,115,122,0.4)',padding:'12px 14px 4px'}}>{g}</div>}
               {NAV.filter(n=>n.g===g).map(n=>{
-                const isActive = active===n.s
+                const isActive=active===n.s
                 return (
                   <button key={n.s} onClick={()=>setActive(n.s)}
                     style={{
                       display:'flex', alignItems:'center', gap:'10px',
-                      width:'100%', padding: collapsed?'10px 0':'9px 14px',
-                      justifyContent: collapsed?'center':'flex-start',
-                      fontSize:'12px', fontWeight: isActive?600:400,
+                      width:'100%', padding:collapsed?'10px 0':'9px 14px',
+                      justifyContent:collapsed?'center':'flex-start',
+                      fontSize:'12px', fontWeight:isActive?600:400,
                       cursor:'pointer', border:'none',
-                      borderLeft: collapsed?'none':`2px solid ${isActive?C.gold:'transparent'}`,
-                      background: isActive
-                        ? `linear-gradient(90deg, rgba(212,168,79,0.08) 0%, transparent 100%)`
-                        : 'transparent',
-                      color: isActive?C.gold:C.smoke,
+                      borderLeft:collapsed?'none':`2px solid ${isActive?C.gold:'transparent'}`,
+                      background:isActive?`linear-gradient(90deg,rgba(212,168,79,0.08) 0%,transparent 100%)`:'transparent',
+                      color:isActive?C.gold:C.smoke,
                       transition:'all .15s', textAlign:'left',
                       fontFamily:"'DM Sans',sans-serif",
-                      boxShadow: isActive&&collapsed ? `inset 2px 2px 5px ${C.nd}, inset -1px -1px 4px ${C.nl}` : 'none',
                     }}>
                     <span style={{fontSize:'14px',flexShrink:0}}>{n.icon}</span>
                     {!collapsed&&<span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{n.l}</span>}
@@ -178,47 +191,36 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Session */}
+        {/* Session + Lock */}
         <div style={{padding:'12px',borderTop:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
           {!collapsed&&(
             <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'8px 12px',marginBottom:'10px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <span style={{fontSize:'10px',color:C.smoke}}>Session</span>
-              <span style={{color:timer<120?'#ef4444':C.gold,fontWeight:700,fontFamily:'monospace',fontSize:'12px'}}>{mm}:{ss}</span>
+              <span style={{color:timer<120?'#ef4444':timer<300?C.gold:C.silver,fontWeight:700,fontFamily:'monospace',fontSize:'12px'}}>{mm}:{ss}</span>
             </div>
           )}
-          <button onClick={lock} style={{
-            width:'100%', padding:'8px', borderRadius:'10px',
-            background:C.g, boxShadow:raisedSm,
-            border:'1px solid rgba(239,68,68,0.15)',
-            color:'#ef4444', fontSize:'11px', fontWeight:600,
-            cursor:'pointer', fontFamily:"'DM Sans',sans-serif",
-            display:'flex', alignItems:'center', justifyContent:'center', gap:'6px',
-          }}>
+          <button onClick={lock}
+            style={{width:'100%',padding:'8px',borderRadius:'10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.15)',color:'#ef4444',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .15s',outline:'none'}}>
             🔒{!collapsed&&' Lock'}
           </button>
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
+      {/* ─── MAIN ─── */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
 
         {/* Topbar */}
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between',
-          padding:'0 24px', height:'56px',
-          background:C.g, borderBottom:'1px solid rgba(255,255,255,0.03)',
-          boxShadow:`0 4px 16px ${C.nd}`, flexShrink:0,
-        }}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 24px',height:'56px',background:C.g,borderBottom:'1px solid rgba(255,255,255,0.025)',boxShadow:`0 4px 16px ${C.nd}`,flexShrink:0}}>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:'15px',color:C.silver,display:'flex',alignItems:'center',gap:'8px'}}>
             <span>{NAV.find(n=>n.s===active)?.icon}</span>
             {NAV.find(n=>n.s===active)?.l}
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'6px',background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.15)',borderRadius:'20px',padding:'5px 12px',fontSize:'10px',fontWeight:700,color:'#4ade80'}}>
               <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#4ade80',boxShadow:'0 0 6px #4ade80'}}/>
-              2FA Active · Vault Open
+              2FA Active
             </div>
-            <div style={{fontSize:'11px',color:C.smoke,background:C.g,boxShadow:raisedSm,padding:'6px 12px',borderRadius:'8px'}}>
+            <div style={{fontSize:'11px',color:C.smoke,background:C.g,boxShadow:raisedSm,padding:'6px 12px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.03)'}}>
               {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
             </div>
           </div>
@@ -227,12 +229,12 @@ export default function AdminDashboard() {
         {/* Content */}
         <div style={{flex:1,overflowY:'auto',padding:'24px'}}>
           {loading ? (
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'300px',flexDirection:'column',gap:'12px'}}>
-              <div style={{width:'40px',height:'40px',background:C.g,boxShadow:raised,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px'}}>⏳</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'300px',flexDirection:'column',gap:'14px'}}>
+              <div style={{width:'44px',height:'44px',background:C.g,boxShadow:raised,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px'}}>⏳</div>
               <div style={{color:C.smoke,fontSize:'13px'}}>Loading…</div>
             </div>
           ) : (
-            <Content section={active} data={data} reload={()=>load(active)} fmt={fmt} fmtDt={fmtDt}/>
+            <DashContent section={active} data={data} reload={()=>load(active)} fmt={fmt} fmtDt={fmtDt}/>
           )}
         </div>
       </div>
@@ -240,18 +242,17 @@ export default function AdminDashboard() {
   )
 }
 
-function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reload:()=>void;fmt:(c:number)=>string;fmtDt:(d:string)=>string}) {
-  if (!data) return <div style={{color:'#6F737A',textAlign:'center',paddingTop:'60px'}}>No data</div>
+function DashContent({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reload:()=>void;fmt:(c:number)=>string;fmtDt:(d:string)=>string}) {
+  if(!data) return null
+  const g4={display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
+  const g3={display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
+  const g2={display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'14px',marginBottom:'16px'} as React.CSSProperties
 
-  const grid2={display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
-  const grid4={display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
-  const grid3={display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
-
-  if (section==='overview') return (
+  if(section==='overview') return (
     <div>
-      <div style={grid4}>
-        <Metric l="Today Revenue"  v={fmt(data.todayCents||0)}   accent="#D4A84F"/>
-        <Metric l="Total Revenue"  v={fmt(data.totalCents||0)}   accent="#a78bfa"/>
+      <div style={g4}>
+        <Metric l="Today Revenue"  v={fmt(data.todayCents||0)}   accent={C.gold}/>
+        <Metric l="Total Revenue"  v={fmt(data.totalCents||0)}   accent='#a78bfa'/>
         <Metric l="Active Cards"   v={String(data.activeCards||0)}/>
         <Metric l="Total Users"    v={String(data.totalUsers||0)}/>
       </div>
@@ -259,7 +260,7 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
         <Tbl heads={['Type','Amount','Method','Country','Date','Status']}
           rows={(data.recentPayments||[]).map((p:any)=>[
             <Bdg t={p.type==='new_card'?'New card':'Renewal'} type={p.type==='new_card'?'amber':'gray'}/>,
-            <span style={{fontWeight:700,color:'#D4A84F'}}>{fmt(p.amount_cents)}</span>,
+            <span style={{fontWeight:700,color:C.gold}}>{fmt(p.amount_cents)}</span>,
             p.payment_method||'—', p.country||'—', fmtDt(p.created_at),
             <Bdg t={p.status} type={p.status==='paid'?'green':p.status==='failed'?'red':'gray'}/>,
           ])}/>
@@ -267,67 +268,15 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     </div>
   )
 
-  if (section==='daily') return (
+  if(section==='daily') return (
     <div>
-      <div style={grid3}>
-        <Metric l="Today Gross"  v={fmt(Number(data.daily?.[0]?.gross_cents)||0)}       accent="#D4A84F"/>
-        <Metric l="Stripe Fees"  v={fmt(Number(data.daily?.[0]?.stripe_fee_cents)||0)}  accent="#ef4444"/>
-        <Metric l="Today Net"    v={fmt(Number(data.daily?.[0]?.net_cents)||0)}          accent="#4ade80"/>
+      <div style={g3}>
+        <Metric l="Today Gross"  v={fmt(Number(data.daily?.[0]?.gross_cents)||0)}      accent={C.gold}/>
+        <Metric l="Stripe Fees"  v={fmt(Number(data.daily?.[0]?.stripe_fee_cents)||0)} accent='#ef4444'/>
+        <Metric l="Today Net"    v={fmt(Number(data.daily?.[0]?.net_cents)||0)}         accent='#4ade80'/>
       </div>
       <Panel title="Daily accounting (last 90 days)">
         <Tbl heads={['Date','Transactions','Gross','Stripe Fees','Net']}
-          rows={(data.daily||[]).map((d:any)=>[
-            fmtDt(d.day), d.transactions,
-            fmt(d.gross_cents),
-            <span style={{color:'#ef4444'}}>−{fmt(d.stripe_fee_cents)}</span>,
-            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(d.net_cents)}</span>,
-          ])}/>
-      </Panel>
-    </div>
-  )
-
-  if (section==='clients') return (
-    <Panel title={`All clients (${data.clients?.length||0})`}
-      action={<span style={{fontSize:'11px',color:'#D4A84F',cursor:'pointer'}}>Export CSV</span>}>
-      <Tbl heads={['Email','Name','Owner','Active','Joined']}
-        rows={(data.clients||[]).map((c:any)=>[
-          <span style={{fontFamily:'monospace',fontSize:'11px'}}>{c.email||'—'}</span>,
-          c.full_name||'—',
-          c.is_owner?<Bdg t="Owner" type="amber"/>:<span style={{color:'#6F737A'}}>—</span>,
-          c.is_active?<Bdg t="Active" type="green"/>:<Bdg t="Inactive" type="gray"/>,
-          fmtDt(c.created_at),
-        ])}/>
-    </Panel>
-  )
-
-  if (section==='orders') return (
-    <Panel title={`All orders (${data.orders?.length||0})`}
-      action={<span style={{fontSize:'11px',color:'#D4A84F',cursor:'pointer'}}>Export CSV</span>}>
-      <Tbl heads={['Type','Amount','Method','Country','Promo','Date','Status']}
-        rows={(data.orders||[]).map((p:any)=>[
-          <Bdg t={p.type==='new_card'?'New':'Renewal'} type={p.type==='new_card'?'amber':'gray'}/>,
-          <span style={{fontWeight:700,color:'#D4A84F'}}>{fmt(p.amount_cents)}</span>,
-          p.payment_method||'—', p.country||'—',
-          p.promo_code?<Bdg t={p.promo_code} type="amber"/>:<span style={{color:'#6F737A'}}>—</span>,
-          fmtDt(p.created_at),
-          <Bdg t={p.status} type={p.status==='paid'?'green':p.status==='failed'?'red':'gray'}/>,
-        ])}/>
-    </Panel>
-  )
-
-  if (section==='accounting') return (
-    <div>
-      <Panel title="Monthly Revenue">
-        <Tbl heads={['Month','Transactions','Gross','Net','New Cards','Renewals']}
-          rows={(data.monthly||[]).map((m:any)=>[
-            fmtDt(m.month), m.transactions,
-            fmt(m.gross_cents),
-            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(m.net_cents)}</span>,
-            m.new_cards, m.renewals,
-          ])}/>
-      </Panel>
-      <Panel title="Daily detail (last 90 days)">
-        <Tbl heads={['Date','Txns','Gross','Stripe Fees','Net']}
           rows={(data.daily||[]).map((d:any)=>[
             fmtDt(d.day), d.transactions, fmt(d.gross_cents),
             <span style={{color:'#ef4444'}}>−{fmt(d.stripe_fee_cents)}</span>,
@@ -337,41 +286,89 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     </div>
   )
 
-  if (section==='metrics') return (
+  if(section==='clients') return (
+    <Panel title={`All clients (${data.clients?.length||0})`}>
+      <Tbl heads={['Email','Name','Owner','Active','Joined']}
+        rows={(data.clients||[]).map((c:any)=>[
+          <span style={{fontFamily:'monospace',fontSize:'11px'}}>{c.email||'—'}</span>,
+          c.full_name||'—',
+          c.is_owner?<Bdg t="Owner" type="amber"/>:<span style={{color:C.smoke}}>—</span>,
+          c.is_active?<Bdg t="Active" type="green"/>:<Bdg t="Inactive" type="gray"/>,
+          fmtDt(c.created_at),
+        ])}/>
+    </Panel>
+  )
+
+  if(section==='orders') return (
+    <Panel title={`All orders (${data.orders?.length||0})`}>
+      <Tbl heads={['Type','Amount','Method','Country','Promo','Date','Status']}
+        rows={(data.orders||[]).map((p:any)=>[
+          <Bdg t={p.type==='new_card'?'New':'Renewal'} type={p.type==='new_card'?'amber':'gray'}/>,
+          <span style={{fontWeight:700,color:C.gold}}>{fmt(p.amount_cents)}</span>,
+          p.payment_method||'—', p.country||'—',
+          p.promo_code?<Bdg t={p.promo_code} type="amber"/>:<span style={{color:C.smoke}}>—</span>,
+          fmtDt(p.created_at),
+          <Bdg t={p.status} type={p.status==='paid'?'green':p.status==='failed'?'red':'gray'}/>,
+        ])}/>
+    </Panel>
+  )
+
+  if(section==='accounting') return (
     <div>
-      <div style={grid4}>
-        <Metric l="Total Views"    v={String(data.totalViews||0)}  accent="#a78bfa"/>
-        <Metric l="Contacts Saved" v={String(data.totalSaves||0)}  accent="#D4A84F"/>
+      <Panel title="Monthly Revenue">
+        <Tbl heads={['Month','Transactions','Gross','Net','New Cards','Renewals']}
+          rows={(data.monthly||[]).map((m:any)=>[
+            fmtDt(m.month), m.transactions, fmt(m.gross_cents),
+            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(m.net_cents)}</span>,
+            m.new_cards, m.renewals,
+          ])}/>
+      </Panel>
+      <Panel title="Daily detail (last 90 days)">
+        <Tbl heads={['Date','Txns','Gross','Fees','Net']}
+          rows={(data.daily||[]).map((d:any)=>[
+            fmtDt(d.day), d.transactions, fmt(d.gross_cents),
+            <span style={{color:'#ef4444'}}>−{fmt(d.stripe_fee_cents)}</span>,
+            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(d.net_cents)}</span>,
+          ])}/>
+      </Panel>
+    </div>
+  )
+
+  if(section==='metrics') return (
+    <div>
+      <div style={g4}>
+        <Metric l="Total Views"    v={String(data.totalViews||0)}  accent='#a78bfa'/>
+        <Metric l="Contacts Saved" v={String(data.totalSaves||0)}  accent={C.gold}/>
         <Metric l="Top Country"    v={data.byCountry?.[0]?.country||'—'}/>
         <Metric l="Top Source"     v={data.bySource?.[0]?.source||'—'}/>
       </div>
-      <div style={grid2}>
-        <Panel title="Traffic by country">
+      <div style={g2}>
+        <Panel title="By country">
           {(data.byCountry||[]).slice(0,8).map((r:any)=>{
-            const total=(data.byCountry||[]).reduce((s:number,x:any)=>s+x.cnt,0)
-            const pct=total>0?Math.round((r.cnt/total)*100):0
+            const total=(data.byCountry||[]).reduce((s:number,x:any)=>s+Number(x.cnt),0)
+            const pct=total>0?Math.round((Number(r.cnt)/total)*100):0
             return (
               <div key={r.country} style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',fontSize:'12px'}}>
-                <span style={{width:'28px',color:'#BFC3C9'}}>{r.country}</span>
+                <span style={{width:'28px',color:C.silver}}>{r.country||'?'}</span>
                 <div style={{flex:1,background:'rgba(255,255,255,0.04)',borderRadius:'4px',height:'6px',boxShadow:insetSm}}>
-                  <div style={{width:`${pct}%`,height:'6px',background:'#D4A84F',borderRadius:'4px'}}/>
+                  <div style={{width:`${pct}%`,height:'6px',background:C.gold,borderRadius:'4px'}}/>
                 </div>
-                <span style={{color:'#6F737A',minWidth:'30px',textAlign:'right'}}>{pct}%</span>
+                <span style={{color:C.smoke,minWidth:'30px',textAlign:'right'}}>{pct}%</span>
               </div>
             )
           })}
         </Panel>
-        <Panel title="Traffic by source">
+        <Panel title="By source">
           {(data.bySource||[]).map((r:any)=>{
-            const total=(data.bySource||[]).reduce((s:number,x:any)=>s+x.cnt,0)
-            const pct=total>0?Math.round((r.cnt/total)*100):0
+            const total=(data.bySource||[]).reduce((s:number,x:any)=>s+Number(x.cnt),0)
+            const pct=total>0?Math.round((Number(r.cnt)/total)*100):0
             return (
               <div key={r.source} style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',fontSize:'12px'}}>
-                <span style={{width:'60px',color:'#BFC3C9',textTransform:'capitalize'}}>{r.source}</span>
+                <span style={{width:'60px',color:C.silver,textTransform:'capitalize'}}>{r.source||'direct'}</span>
                 <div style={{flex:1,background:'rgba(255,255,255,0.04)',borderRadius:'4px',height:'6px',boxShadow:insetSm}}>
                   <div style={{width:`${pct}%`,height:'6px',background:'#a78bfa',borderRadius:'4px'}}/>
                 </div>
-                <span style={{color:'#6F737A',minWidth:'30px',textAlign:'right'}}>{pct}%</span>
+                <span style={{color:C.smoke,minWidth:'30px',textAlign:'right'}}>{pct}%</span>
               </div>
             )
           })}
@@ -380,24 +377,24 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     </div>
   )
 
-  if (section==='promos') return <PromoSection data={data} reload={reload}/>
+  if(section==='promos') return <PromoSection data={data} reload={reload}/>
 
-  if (section==='security') return (
+  if(section==='security') return (
     <div>
-      <div style={grid4}>
-        <Metric l="2FA Status"    v="Active"  accent="#4ade80"/>
+      <div style={g4}>
+        <Metric l="2FA"           v="Active"  accent='#4ade80'/>
         <Metric l="Auto-lock"     v="15 min"/>
-        <Metric l="Failed Logins" v={String((data.logs||[]).filter((l:any)=>l.event?.includes('failed')).length)} accent="#ef4444"/>
+        <Metric l="Failed Logins" v={String((data.logs||[]).filter((l:any)=>l.event?.includes('failed')).length)} accent='#ef4444'/>
         <Metric l="Total Events"  v={String(data.logs?.length||0)}/>
       </div>
-      <Panel title="Access log (last 100 events)">
-        <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+      <Panel title="Access log">
+        <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
           {(data.logs||[]).map((l:any)=>(
-            <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:'10px',padding:'10px',borderRadius:'10px',background:'rgba(255,255,255,0.015)',border:'1px solid rgba(255,255,255,0.02)',marginBottom:'4px'}}>
-              <div style={{width:'8px',height:'8px',borderRadius:'50%',marginTop:'3px',flexShrink:0,background:l.event?.includes('success')?'#4ade80':l.event?.includes('failed')||l.event?.includes('blocked')?'#ef4444':'#D4A84F',boxShadow:`0 0 6px currentColor`}}/>
+            <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:'10px',padding:'10px 12px',borderRadius:'10px',background:'rgba(255,255,255,0.015)',border:'1px solid rgba(255,255,255,0.02)'}}>
+              <div style={{width:'8px',height:'8px',borderRadius:'50%',marginTop:'3px',flexShrink:0,background:l.event?.includes('success')?'#4ade80':l.event?.includes('failed')||l.event?.includes('blocked')?'#ef4444':C.gold}}/>
               <div style={{flex:1}}>
-                <div style={{fontSize:'12px',fontWeight:500,color:'#BFC3C9',textTransform:'capitalize'}}>{l.event?.replace(/_/g,' ')}</div>
-                <div style={{fontSize:'11px',color:'#6F737A',marginTop:'2px'}}>{l.ip||'—'} · {l.country||'—'} · {fmtDt(l.created_at)}</div>
+                <div style={{fontSize:'12px',fontWeight:500,color:C.silver,textTransform:'capitalize'}}>{l.event?.replace(/_/g,' ')}</div>
+                <div style={{fontSize:'11px',color:C.smoke,marginTop:'2px'}}>{l.ip||'—'} · {fmtDt(l.created_at)}</div>
               </div>
             </div>
           ))}
@@ -406,58 +403,58 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     </div>
   )
 
-  if (section==='mycard') return (
+  if(section==='mycard') return (
     <div style={{maxWidth:'500px'}}>
-      <Panel title="Owner privileges — always free">
+      <Panel title="Owner privileges">
         {[
-          {l:'Edit card anytime',          v:'Free always',   t:'green' as const},
-          {l:'Unlimited card updates',     v:'Unlimited',     t:'green' as const},
-          {l:'No confirmation dialogs',    v:'Bypassed',      t:'green' as const},
-          {l:'Create promo codes',         v:'Full access',   t:'amber' as const},
-          {l:'Admin dashboard access',     v:'Full access',   t:'amber' as const},
-          {l:'View all analytics',         v:'Full access',   t:'amber' as const},
+          {l:'Edit card anytime',       v:'Free always',   t:'green' as const},
+          {l:'Unlimited card updates',  v:'Unlimited',     t:'green' as const},
+          {l:'No payment dialogs',      v:'Bypassed',      t:'green' as const},
+          {l:'Create promo codes',      v:'Full access',   t:'amber' as const},
+          {l:'Admin dashboard',         v:'Full access',   t:'amber' as const},
+          {l:'All analytics',           v:'Full access',   t:'amber' as const},
         ].map(r=>(
-          <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:'13px'}}>
-            <span style={{color:'#BFC3C9'}}>{r.l}</span>
+          <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+            <span style={{fontSize:'13px',color:C.silver}}>{r.l}</span>
             <Bdg t={r.v} type={r.t}/>
           </div>
         ))}
       </Panel>
       <Panel>
-        <a href="/builder" style={{display:'block',padding:'14px',background:`linear-gradient(135deg,#D4A84F,#E8C06A,#A07830)`,color:'#050607',fontWeight:700,fontSize:'14px',borderRadius:'12px',textAlign:'center',textDecoration:'none',boxShadow:`3px 3px 10px #08090B, 0 0 16px rgba(212,168,79,0.2)`}}>
+        <a href="/builder" style={{display:'block',padding:'14px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'14px',borderRadius:'12px',textAlign:'center',textDecoration:'none',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif"}}>
           → Go to card builder
         </a>
       </Panel>
     </div>
   )
 
-  if (section==='rules') return (
+  if(section==='rules') return (
     <div style={{maxWidth:'500px'}}>
       <Panel title="Pricing rules">
         {[
           {l:'New card creation',  v:'$20.00', note:'One-time payment'},
           {l:'Identity renewal',   v:'$10.00', note:'Archives previous card'},
           {l:'Content updates',    v:'Free',   note:'Colors, bio, services, socials'},
-          {l:'Owner edits',        v:'Free',   note:'All fields, no charge'},
+          {l:'Owner edits',        v:'Free',   note:'All fields, always'},
         ].map(r=>(
           <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
             <div>
-              <div style={{fontSize:'13px',color:'#BFC3C9',fontWeight:500}}>{r.l}</div>
-              <div style={{fontSize:'11px',color:'#6F737A',marginTop:'2px'}}>{r.note}</div>
+              <div style={{fontSize:'13px',color:C.silver,fontWeight:500}}>{r.l}</div>
+              <div style={{fontSize:'11px',color:C.smoke,marginTop:'2px'}}>{r.note}</div>
             </div>
-            <span style={{fontWeight:700,color:'#D4A84F',fontFamily:"'Syne',sans-serif",fontSize:'16px'}}>{r.v}</span>
+            <span style={{fontWeight:700,color:C.gold,fontFamily:"'Syne',sans-serif",fontSize:'16px'}}>{r.v}</span>
           </div>
         ))}
       </Panel>
       <Panel title="Identity fields (paid to change)">
-        <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
           {['Full name','Title','Company','Photo','Logo','Phone','WhatsApp','Email'].map(f=>(
-            <span key={f} style={{padding:'5px 12px',background:'rgba(212,168,79,0.08)',border:'1px solid rgba(212,168,79,0.2)',borderRadius:'20px',fontSize:'11px',color:'#D4A84F',fontWeight:600}}>{f}</span>
+            <span key={f} style={{padding:'5px 12px',background:'rgba(212,168,79,0.08)',border:'1px solid rgba(212,168,79,0.2)',borderRadius:'20px',fontSize:'11px',color:C.gold,fontWeight:600}}>{f}</span>
           ))}
         </div>
       </Panel>
-      <Panel title="Free fields (always free)">
-        <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+      <Panel title="Free fields">
+        <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
           {['Tagline','Bio','Services','Instagram','LinkedIn','Twitter','Telegram','TikTok','YouTube','Website','Address','Colors','Design'].map(f=>(
             <span key={f} style={{padding:'5px 12px',background:'rgba(74,222,128,0.06)',border:'1px solid rgba(74,222,128,0.15)',borderRadius:'20px',fontSize:'11px',color:'#4ade80',fontWeight:600}}>{f}</span>
           ))}
@@ -466,7 +463,7 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     </div>
   )
 
-  if (section==='compliance') return (
+  if(section==='compliance') return (
     <Panel title="Legal compliance">
       <Tbl heads={['Document','Standard','Applies at','Status']}
         rows={[
@@ -474,7 +471,7 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
           ['Privacy Policy','GDPR · CCPA · LGPD','Register + Footer',<Bdg t="Live" type="green"/>],
           ['Refund Policy','No-refund after publish','Before payment',<Bdg t="Live" type="green"/>],
           ['PCI DSS','Stripe (delegated)','N/A',<Bdg t="Live" type="green"/>],
-          ['Data Encryption','TLS 1.3 + at-rest','Always',<Bdg t="Live" type="green"/>],
+          ['TLS 1.3','Always on','All traffic',<Bdg t="Live" type="green"/>],
         ]}/>
     </Panel>
   )
@@ -483,12 +480,7 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
 }
 
 function PromoSection({data,reload}:{data:any;reload:()=>void}) {
-  const C2={g:'#0D0F12',gold:'#D4A84F',silver:'#BFC3C9',smoke:'#6F737A',nd:'#08090B',nl:'#141720'}
-  const inpSt:React.CSSProperties={
-    padding:'9px 12px',border:'1px solid rgba(255,255,255,0.05)',borderRadius:'10px',
-    background:C2.g,color:C2.silver,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",
-    outline:'none',boxShadow:`inset 2px 2px 6px ${C2.nd}, inset -2px -2px 5px ${C2.nl}`,width:'100%',
-  }
+  const inpSt:React.CSSProperties={padding:'9px 12px',border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',background:C.g,color:C.silver,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",outline:'none',boxShadow:insetSm,width:'100%'}
   const [form,setForm]=useState({code:'',discountType:'percent',discountValue:20,appliesTo:'both',maxUses:''})
   const [loading,setLoading]=useState(false)
 
@@ -500,16 +492,21 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
     reload(); setLoading(false)
   }
 
+  async function toggle(id:string, current:boolean){
+    await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,isActive:!current})})
+    reload()
+  }
+
   return (
     <div>
       <Panel title="Create promo code">
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto',gap:'12px',alignItems:'end'}}>
+        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto',gap:'10px',alignItems:'end'}}>
           <div>
-            <label style={{fontSize:'10px',color:C2.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Code</label>
+            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Code</label>
             <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="VYNK50" style={inpSt}/>
           </div>
           <div>
-            <label style={{fontSize:'10px',color:C2.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Type</label>
+            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Type</label>
             <select value={form.discountType} onChange={e=>setForm(f=>({...f,discountType:e.target.value}))} style={inpSt}>
               <option value="percent">% off</option>
               <option value="fixed">$ off</option>
@@ -517,27 +514,32 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
             </select>
           </div>
           <div>
-            <label style={{fontSize:'10px',color:C2.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Value</label>
+            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Value</label>
             <input type="number" value={form.discountValue} onChange={e=>setForm(f=>({...f,discountValue:+e.target.value}))} style={inpSt}/>
           </div>
           <div>
-            <label style={{fontSize:'10px',color:C2.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Max uses</label>
+            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Max uses</label>
             <input type="number" placeholder="∞" value={form.maxUses} onChange={e=>setForm(f=>({...f,maxUses:e.target.value}))} style={inpSt}/>
           </div>
-          <button onClick={create} disabled={loading} style={{padding:'9px 18px',borderRadius:'10px',background:`linear-gradient(135deg,${C2.gold},#E8C06A,#A07830)`,color:C2.g,fontWeight:700,fontSize:'12px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",boxShadow:`3px 3px 10px ${C2.nd}, 0 0 14px rgba(212,168,79,0.2)`,whiteSpace:'nowrap',height:'38px'}}>
-            {loading?'…':'+ Generate'}
+          <button onClick={create} disabled={loading}
+            style={{padding:'9px 18px',borderRadius:'10px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'12px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",boxShadow:goldBox,whiteSpace:'nowrap',height:'38px'}}>
+            {loading?'…':'+ Create'}
           </button>
         </div>
+        <p style={{fontSize:'11px',color:C.smoke,marginTop:'10px',opacity:.7}}>
+          Tip: Use <strong style={{color:C.gold}}>100% free</strong> type for test users — they get the card without paying.
+        </p>
       </Panel>
       <Panel title={`Active codes (${data.promos?.length||0})`}>
-        <Tbl heads={['Code','Discount','Uses','Applies To','Expires','Status']}
+        <Tbl heads={['Code','Discount','Uses','Applies To','Expires','Status','Action']}
           rows={(data.promos||[]).map((p:any)=>[
-            <span style={{fontFamily:'monospace',fontWeight:700,color:C2.gold,fontSize:'13px'}}>{p.code}</span>,
-            `${p.discount_value}${p.discount_type==='percent'?'%':p.discount_type==='free'?'% free':'$'} off`,
+            <span style={{fontFamily:'monospace',fontWeight:700,color:C.gold,fontSize:'13px'}}>{p.code}</span>,
+            `${p.discount_value}${p.discount_type==='percent'?'%':p.discount_type==='free'?' free':'$'} off`,
             `${p.uses_count}${p.max_uses?` / ${p.max_uses}`:''}`,
             p.applies_to,
             p.expires_at?new Date(p.expires_at).toLocaleDateString():'No expiry',
             <Bdg t={p.is_active?'Active':'Off'} type={p.is_active?'green':'gray'}/>,
+            <button onClick={()=>toggle(p.id,p.is_active)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{p.is_active?'Disable':'Enable'}</button>,
           ])}/>
       </Panel>
     </div>
