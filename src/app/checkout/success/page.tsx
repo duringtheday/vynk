@@ -1,34 +1,61 @@
-import Image from 'next/image'
+'use client'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-interface Props { searchParams: Promise<{ slug?: string }> }
+const C = { g:'#0D0F12', gold:'#D4A84F', goldLt:'#E8C06A', goldDk:'#A07830', silver:'#BFC3C9', smoke:'#6F737A', nd:'#08090B', nl:'#141720' }
+const raised = `5px 5px 14px ${C.nd}, -3px -3px 10px ${C.nl}`
+const goldBox = `4px 4px 14px ${C.nd}, 0 0 22px rgba(212,168,79,0.2)`
 
-export default async function SuccessPage({ searchParams }: Props) {
-  const { slug } = await searchParams
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vynk.app'
-  const cardUrl = slug ? `/c/${slug}` : '/'
-  const C = { graphite:'#0D0F12', gold:'#D4A84F', silver:'#BFC3C9', smoke:'#6F737A', carbon:'#050607', nmDark:'#08090B', nmLite:'#141720' }
-  const raised = `8px 8px 22px ${C.nmDark}, -5px -5px 14px ${C.nmLite}`
-  const insetSm = `inset 2px 2px 6px ${C.nmDark}, inset -2px -2px 5px ${C.nmLite}`
+function SuccessContent() {
+  const params = useSearchParams()
+  const slug   = params.get('slug')
+  const [ready, setReady] = useState(false)
+  const [dots, setDots]   = useState('.')
+
+  useEffect(()=>{
+    const d = setInterval(()=>setDots(p=>p.length>=3?'.':p+'.'),500)
+    const t = setTimeout(()=>{setReady(true);clearInterval(d)},3000)
+    return()=>{clearInterval(d);clearTimeout(t)}
+  },[])
 
   return (
-    <main style={{ minHeight:'100dvh', background:C.graphite, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px', textAlign:'center', fontFamily:"'DM Sans',sans-serif", color:C.silver }}>
-      <Image src="/logo.png" alt="Vynk" width={100} height={32} style={{ objectFit:'contain', marginBottom:'40px', opacity:.8 }} />
-      <div style={{ width:'88px', height:'88px', background:C.graphite, boxShadow:raised, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'40px', margin:'0 auto 28px' }}>🎉</div>
-      <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:'32px', fontWeight:800, marginBottom:'12px', color:C.silver }}>Your card is live!</h1>
-      <p style={{ color:C.smoke, marginBottom:'20px', fontSize:'15px', fontWeight:300 }}>Share this link — anyone can save your contact instantly:</p>
-      <div style={{ background:C.graphite, boxShadow:insetSm, borderRadius:'16px', padding:'16px 28px', marginBottom:'36px', fontFamily:'monospace', color:C.gold, fontWeight:700, fontSize:'15px', wordBreak:'break-all', maxWidth:'420px', width:'100%', border:'1px solid rgba(212,168,79,0.1)' }}>
-        {appUrl}{cardUrl}
+    <div style={{minHeight:'100dvh',background:C.g,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px',fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{maxWidth:'420px',width:'100%',display:'flex',flexDirection:'column',gap:'20px',alignItems:'center',textAlign:'center'}}>
+        <div style={{padding:'14px 22px',background:C.g,boxShadow:raised,borderRadius:'16px',border:'1px solid rgba(212,168,79,0.07)'}}>
+          <img src="/logo.png" alt="Vynk" style={{width:'100%',height:'auto',maxWidth:'90px',display:'block'}}/>
+        </div>
+        <div style={{background:C.g,boxShadow:raised,borderRadius:'24px',padding:'36px',border:'1px solid rgba(255,255,255,0.03)',width:'100%'}}>
+          {!ready?(
+            <>
+              <div style={{fontSize:'40px',marginBottom:'16px'}}>⚡</div>
+              <h1 style={{fontSize:'20px',fontWeight:700,color:C.silver,fontFamily:"'Syne',sans-serif",marginBottom:'8px'}}>Publishing{dots}</h1>
+              <p style={{fontSize:'13px',color:C.smoke,lineHeight:1.7}}>Payment confirmed. Setting up your digital identity.</p>
+            </>
+          ):(
+            <>
+              <div style={{fontSize:'40px',marginBottom:'16px'}}>✨</div>
+              <h1 style={{fontSize:'22px',fontWeight:800,color:C.gold,fontFamily:"'Syne',sans-serif",marginBottom:'8px'}}>Your card is live!</h1>
+              <p style={{fontSize:'13px',color:C.smoke,lineHeight:1.7,marginBottom:'24px'}}>Share it everywhere. Every tap is a smart introduction.</p>
+              {slug&&(
+                <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                  <Link href={`/c/${slug}`} style={{padding:'14px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.nd,borderRadius:'14px',fontWeight:700,fontSize:'14px',textDecoration:'none',display:'block',boxShadow:goldBox}}>
+                    View my card →
+                  </Link>
+                  <Link href="/builder" style={{padding:'12px',background:C.g,boxShadow:raised,color:C.smoke,borderRadius:'12px',fontSize:'13px',textDecoration:'none',display:'block',border:'1px solid rgba(255,255,255,0.03)'}}>
+                    Edit card
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <p style={{fontSize:'11px',color:C.smoke,opacity:.5}}>Powered by <span style={{color:C.gold,fontWeight:700}}>Vynk</span></p>
       </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:'12px', width:'100%', maxWidth:'360px' }}>
-        <Link href={cardUrl} style={{ textDecoration:'none', display:'block', padding:'16px', background:'linear-gradient(135deg,#D4A84F,#E8C06A,#A07830)', color:C.carbon, fontWeight:700, fontSize:'15px', borderRadius:'16px', textAlign:'center', boxShadow:`4px 4px 14px ${C.nmDark}, 0 0 22px rgba(212,168,79,0.2)` }}>
-          View my Vynk card →
-        </Link>
-        <Link href="/builder" style={{ textDecoration:'none', display:'block', padding:'14px', background:C.graphite, boxShadow:`4px 4px 10px ${C.nmDark}, -2px -2px 7px ${C.nmLite}`, color:C.smoke, fontSize:'14px', borderRadius:'14px', textAlign:'center', border:'1px solid rgba(255,255,255,0.04)' }}>
-          Back to builder
-        </Link>
-      </div>
-      <p style={{ fontSize:'12px', color:C.smoke, marginTop:'24px', opacity:.5 }}>Receipt sent to your email via Stripe.</p>
-    </main>
+    </div>
   )
+}
+
+export default function CheckoutSuccess() {
+  return <Suspense><SuccessContent/></Suspense>
 }
