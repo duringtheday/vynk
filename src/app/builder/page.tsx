@@ -1,20 +1,33 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { FIELD_LABELS, requiresPayment } from '@/lib/rules'
 
-const NM = {
-  bg:'#1a1a24', dark:'#0d0d14', lite:'#27273a',
-  gold:'#d4a843', goldLt:'#e8c96a', goldDk:'#a07830',
-  text:'#e8e8f0', muted:'#6a6a8a', subtle:'#3a3a52',
+const C = {
+  g:'#0D0F12', gold:'#D4A84F', goldLt:'#E8C06A', goldDk:'#A07830',
+  silver:'#BFC3C9', smoke:'#6F737A', carbon:'#050607',
+  nd:'#08090B', nl:'#141720',
 }
-const raised   = `6px 6px 14px ${NM.dark}, -4px -4px 10px ${NM.lite}`
-const raisedSm = `3px 3px 8px ${NM.dark}, -2px -2px 6px ${NM.lite}`
-const inset    = `inset 4px 4px 10px ${NM.dark}, inset -3px -3px 8px ${NM.lite}`
-const insetSm  = `inset 2px 2px 6px ${NM.dark}, inset -2px -2px 4px ${NM.lite}`
-const goldRaised = `4px 4px 12px ${NM.dark}, -2px -2px 8px ${NM.lite}, 0 0 20px rgba(212,168,67,0.18)`
+const raised   = `5px 5px 14px ${C.nd}, -3px -3px 10px ${C.nl}`
+const raisedSm = `3px 3px 8px ${C.nd}, -2px -2px 6px ${C.nl}`
+const insetSm  = `inset 2px 2px 6px ${C.nd}, inset -2px -2px 5px ${C.nl}`
+const goldBox  = `4px 4px 14px ${C.nd}, -2px -2px 8px ${C.nl}, 0 0 22px rgba(212,168,79,0.2)`
+
+// ── Card templates ─────────────────────────────────────────────
+const TEMPLATES = [
+  { id:'minimal',   label:'Minimal',    bg:'#0D0F12', bg2:'#1a1a24', textColor:'#BFC3C9', accent:'#D4A84F', mode:'gradient' },
+  { id:'gold',      label:'Gold',       bg:'#1a0e00', bg2:'#3d2200', textColor:'#f5e6c8', accent:'#D4A84F', mode:'gradient' },
+  { id:'midnight',  label:'Midnight',   bg:'#0a0a1a', bg2:'#1a1a3e', textColor:'#e8e8f0', accent:'#6366f1', mode:'gradient' },
+  { id:'forest',    label:'Forest',     bg:'#022c22', bg2:'#064e3b', textColor:'#ecfdf5', accent:'#4ade80', mode:'gradient' },
+  { id:'royal',     label:'Royal',      bg:'#1e1b4b', bg2:'#312e81', textColor:'#ede9fe', accent:'#a78bfa', mode:'gradient' },
+  { id:'ocean',     label:'Ocean',      bg:'#0f172a', bg2:'#1e3a5f', textColor:'#e2e8f0', accent:'#38bdf8', mode:'gradient' },
+  { id:'carbon',    label:'Carbon',     bg:'#050607', bg2:'#111118', textColor:'#BFC3C9', accent:'#D4A84F', mode:'gradient' },
+  { id:'rose',      label:'Rose',       bg:'#1a0010', bg2:'#3d0020', textColor:'#fce7f3', accent:'#f472b6', mode:'gradient' },
+  { id:'pure-dark', label:'Pure Dark',  bg:'#000000', bg2:'#111111', textColor:'#ffffff', accent:'#D4A84F', mode:'solid' },
+  { id:'pure-light',label:'Pure Light', bg:'#ffffff', bg2:'#f1f5f9', textColor:'#0f172a', accent:'#D4A84F', mode:'solid' },
+]
 
 const FONTS = [
   { id:'dm',        name:'DM Sans',    css:"'DM Sans',sans-serif" },
@@ -25,32 +38,40 @@ const FONTS = [
   { id:'josefin',   name:'Josefin',    css:"'Josefin Sans',sans-serif" },
 ]
 
-const PALETTES = [
-  { bg:'#1a1a2e', bg2:'#16213e', textColor:'#e8e8f0', mode:'gradient', label:'Midnight' },
-  { bg:'#0a0a14', bg2:'#1a1a40', textColor:'#e8e8f0', mode:'gradient', label:'Vynk Dark' },
-  { bg:'#1a0a00', bg2:'#3d2200', textColor:'#f5e6c8', mode:'gradient', label:'Gold Night' },
-  { bg:'#022c22', bg2:'#064e3b', textColor:'#ecfdf5', mode:'gradient', label:'Forest' },
-  { bg:'#1e1b4b', bg2:'#312e81', textColor:'#ede9fe', mode:'gradient', label:'Royal' },
-  { bg:'#6366f1', bg2:'#a855f7', textColor:'#fff',    mode:'gradient', label:'Violet' },
-  { bg:'#0f172a', bg2:'#1e3a5f', textColor:'#e2e8f0', mode:'gradient', label:'Ocean' },
-  { bg:'#d4a843', bg2:'#a07830', textColor:'#0a0a0a', mode:'gradient', label:'Gold' },
-  { bg:'#111',    bg2:'#222',    textColor:'#e8e8f0', mode:'solid',    label:'Black' },
-  { bg:'#fff',    bg2:'#f1f5f9', textColor:'#0f172a', mode:'solid',    label:'White' },
-]
-
 type Form = {
-  fullName:string;title:string;company:string;photoUrl:string;logoUrl:string;phone:string;whatsapp:string;email:string;
-  tagline:string;bio:string;services:string;telegram:string;instagram:string;linkedin:string;twitter:string;tiktok:string;youtube:string;website:string;address:string;
+  fullName:string;title:string;company:string;photoUrl:string;logoUrl:string;
+  phone:string;whatsapp:string;email:string;tagline:string;bio:string;
+  services:string;telegram:string;instagram:string;linkedin:string;
+  twitter:string;tiktok:string;youtube:string;website:string;address:string;
 }
 type Design = { template:string;font:string;mode:string;bg:string;bg2:string;textColor:string;accent:string }
 
-const INIT_FORM: Form = { fullName:'',title:'',company:'',photoUrl:'',logoUrl:'',phone:'',whatsapp:'',email:'',tagline:'',bio:'',services:'',telegram:'',instagram:'',linkedin:'',twitter:'',tiktok:'',youtube:'',website:'',address:'' }
-const INIT_DESIGN: Design = { template:'circles',font:'dm',mode:'gradient',bg:'#1a1a2e',bg2:'#16213e',textColor:'#e8e8f0',accent:'#d4a843' }
+const INIT_FORM: Form = {
+  fullName:'',title:'',company:'',photoUrl:'',logoUrl:'',phone:'',whatsapp:'',
+  email:'',tagline:'',bio:'',services:'',telegram:'',instagram:'',linkedin:'',
+  twitter:'',tiktok:'',youtube:'',website:'',address:'',
+}
+const INIT_DESIGN: Design = {
+  template:'minimal',font:'dm',mode:'gradient',
+  bg:'#0D0F12',bg2:'#1a1a24',textColor:'#BFC3C9',accent:'#D4A84F',
+}
 
-// Neumorphic input style
-const nmInp: React.CSSProperties = { width:'100%', padding:'10px 14px', background:NM.bg, boxShadow:insetSm, border:'1px solid rgba(255,255,255,0.03)', borderRadius:'10px', color:NM.text, fontFamily:"'DM Sans',sans-serif", fontSize:'13px', outline:'none' }
-const nmLabel: React.CSSProperties = { display:'block', fontSize:'11px', color:NM.muted, marginBottom:'5px', fontWeight:500 }
-const nmSection: React.CSSProperties = { fontSize:'10px', fontWeight:700, letterSpacing:'.09em', textTransform:'uppercase' as const, color:NM.muted, marginBottom:'14px' }
+const nmInp:React.CSSProperties = {
+  width:'100%', padding:'9px 12px',
+  background:C.g, boxShadow:insetSm,
+  border:'1px solid rgba(255,255,255,0.04)',
+  borderRadius:'10px', color:C.silver,
+  fontFamily:"'DM Sans',sans-serif", fontSize:'13px', outline:'none',
+}
+const lbl:React.CSSProperties = {
+  display:'block', fontSize:'10px', color:C.smoke,
+  marginBottom:'5px', fontWeight:600, letterSpacing:'.05em', textTransform:'uppercase' as const,
+}
+const sec:React.CSSProperties = {
+  fontSize:'9px', fontWeight:700, letterSpacing:'.1em',
+  textTransform:'uppercase' as const, color:C.smoke,
+  marginBottom:'14px', display:'flex', alignItems:'center', gap:'8px',
+}
 
 export default function BuilderPage() {
   const router = useRouter()
@@ -72,7 +93,15 @@ export default function BuilderPage() {
       if(!d.card) return
       setExisting(d.card)
       const c=d.card
-      const f:Form={fullName:c.fullName||'',title:c.title||'',company:c.company||'',photoUrl:c.photoUrl||'',logoUrl:c.logoUrl||'',phone:c.phone||'',whatsapp:c.whatsapp||'',email:c.email||'',tagline:c.tagline||'',bio:c.bio||'',services:(c.services||[]).join(', '),telegram:c.telegram||'',instagram:c.instagram||'',linkedin:c.linkedin||'',twitter:c.twitter||'',tiktok:c.tiktok||'',youtube:c.youtube||'',website:c.website||'',address:c.address||''}
+      const f:Form={
+        fullName:c.fullName||'',title:c.title||'',company:c.company||'',
+        photoUrl:c.photoUrl||'',logoUrl:c.logoUrl||'',phone:c.phone||'',
+        whatsapp:c.whatsapp||'',email:c.email||'',tagline:c.tagline||'',
+        bio:c.bio||'',services:(c.services||[]).join(', '),
+        telegram:c.telegram||'',instagram:c.instagram||'',linkedin:c.linkedin||'',
+        twitter:c.twitter||'',tiktok:c.tiktok||'',youtube:c.youtube||'',
+        website:c.website||'',address:c.address||'',
+      }
       setForm(f); setOriginal(f)
       if(c.design) setDesign(c.design)
     }).catch(()=>{})
@@ -80,6 +109,10 @@ export default function BuilderPage() {
 
   const set  = (k:keyof Form,v:string)   => setForm(f=>({...f,[k]:v}))
   const setD = (k:keyof Design,v:string) => setDesign(d=>({...d,[k]:v}))
+
+  function applyTemplate(t:typeof TEMPLATES[0]) {
+    setDesign(d=>({...d, template:t.id, bg:t.bg, bg2:t.bg2, textColor:t.textColor, accent:t.accent, mode:t.mode}))
+  }
 
   function handleFile(e:React.ChangeEvent<HTMLInputElement>,field:'photoUrl'|'logoUrl'){
     const file=e.target.files?.[0]; if(!file) return
@@ -94,7 +127,7 @@ export default function BuilderPage() {
     const res=await fetch(`/api/promos/validate?code=${promoCode.trim()}`)
     const data=await res.json()
     setPromoValid(data.valid)
-    data.valid?toast.success(`Promo applied!`):toast.error(data.error||'Invalid code')
+    data.valid?toast.success('Promo applied!'):toast.error(data.error||'Invalid code')
   }
 
   async function submit(confirmed=false){
@@ -106,7 +139,16 @@ export default function BuilderPage() {
     }
     setSubmitting(true)
     try{
-      const res=await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,services:form.services.split(',').map(s=>s.trim()).filter(Boolean),design,promoCode:promoValid?promoCode:undefined})})
+      const res=await fetch('/api/cards',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          ...form,
+          services:form.services.split(',').map(s=>s.trim()).filter(Boolean),
+          design,
+          promoCode:promoValid?promoCode:undefined,
+        })
+      })
       const data=await res.json()
       if(!res.ok) throw new Error(data.error||'Something went wrong')
       if(data.free){toast.success('Card published!');router.push(`/c/${data.slug}`)}
@@ -115,211 +157,316 @@ export default function BuilderPage() {
     finally{setSubmitting(false)}
   }
 
-  const cardBg  = design.mode==='gradient'?`linear-gradient(135deg,${design.bg},${design.bg2})`:design.bg
+  const cardBg  = design.mode==='gradient'
+    ? `linear-gradient(135deg,${design.bg},${design.bg2})`
+    : design.bg
   const fontCss = FONTS.find(f=>f.id===design.font)?.css||FONTS[0].css
   const initials = form.fullName.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()||'YN'
 
   return (
-    <main style={{minHeight:'100vh',background:NM.bg,display:'flex',fontFamily:"'DM Sans',sans-serif"}}>
+    <div style={{minHeight:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif"}}>
 
-      {/* Warning Modal */}
+      {/* ── NAV ── */}
+      <nav style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 24px',background:C.g,boxShadow:`0 4px 16px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0,zIndex:10}}>
+        <div style={{padding:'10px 16px',background:C.g,boxShadow:raised,borderRadius:'14px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+          <img src="/logo.png" alt="Vynk" style={{width:'100%',height:'auto',display:'block',maxWidth:'90px'}}/>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+          {existingCard&&(
+            <Link href={`/c/${existingCard.slug}`} style={{fontSize:'12px',color:C.smoke,textDecoration:'none',padding:'8px 14px',background:C.g,boxShadow:raisedSm,borderRadius:'10px',border:'1px solid rgba(255,255,255,0.03)'}}>
+              View my card →
+            </Link>
+          )}
+          <div style={{fontSize:'12px',color:C.smoke,padding:'8px 14px',background:C.g,boxShadow:insetSm,borderRadius:'10px'}}>
+            Card Builder
+          </div>
+        </div>
+      </nav>
+
+      {/* ── WARNING MODAL ── */}
       {showWarning&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(10,10,20,0.85)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
-          <div style={{background:NM.bg,boxShadow:`14px 14px 36px ${NM.dark}, -8px -8px 24px ${NM.lite}`,borderRadius:'28px',padding:'40px 36px',maxWidth:'420px',width:'100%',border:'1px solid rgba(255,255,255,0.04)'}}>
-            <div style={{fontSize:'32px',marginBottom:'16px'}}>⚠️</div>
-            <h2 style={{fontSize:'17px',fontWeight:700,marginBottom:'10px',color:NM.text}}>Identity change detected</h2>
-            <p style={{color:NM.muted,fontSize:'14px',marginBottom:'24px',lineHeight:1.6}}>
-              You changed: <span style={{color:NM.gold,fontWeight:500}}>{paidChanges.map(k=>FIELD_LABELS[k]||k).join(', ')}</span>
-              <br/><br/>These are core identity fields. Your <strong style={{color:NM.text}}>current card will be permanently archived</strong> and a new one published. This costs <strong style={{color:NM.gold}}>$10</strong>.
+        <div style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.85)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+          <div style={{background:C.g,boxShadow:`14px 14px 36px ${C.nd}, -8px -8px 24px ${C.nl}`,borderRadius:'24px',padding:'36px',maxWidth:'420px',width:'100%',border:'1px solid rgba(212,168,79,0.08)'}}>
+            <div style={{fontSize:'28px',marginBottom:'12px'}}>⚠️</div>
+            <h2 style={{fontSize:'16px',fontWeight:700,marginBottom:'8px',color:C.silver,fontFamily:"'Syne',sans-serif"}}>Identity change detected</h2>
+            <p style={{color:C.smoke,fontSize:'13px',marginBottom:'20px',lineHeight:1.7}}>
+              You changed: <span style={{color:C.gold,fontWeight:600}}>{paidChanges.map(k=>FIELD_LABELS[k]||k).join(', ')}</span>
+              <br/><br/>Your current card will be <strong style={{color:C.silver}}>permanently archived</strong> and a new one published. This costs <strong style={{color:C.gold}}>$10</strong>.
             </p>
             <div style={{display:'flex',gap:'12px'}}>
-              <button onClick={()=>{setShowWarning(false);setPaidChanges([])}} style={{flex:1,padding:'13px',background:NM.bg,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'14px',color:NM.muted,fontSize:'14px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
-              <button onClick={()=>{setShowWarning(false);submit(true)}} style={{flex:1,padding:'13px',background:'linear-gradient(135deg,#d4a843,#e8c96a,#a07830)',color:'#0d0d14',borderRadius:'14px',fontSize:'14px',fontWeight:700,border:'none',cursor:'pointer',boxShadow:goldRaised,fontFamily:"'DM Sans',sans-serif"}}>Yes, pay $10 & update</button>
+              <button onClick={()=>{setShowWarning(false);setPaidChanges([])}}
+                style={{flex:1,padding:'12px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'12px',color:C.smoke,fontSize:'13px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                Cancel
+              </button>
+              <button onClick={()=>{setShowWarning(false);submit(true)}}
+                style={{flex:1,padding:'12px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'12px',fontSize:'13px',fontWeight:700,border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif"}}>
+                Pay $10 & update
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Left panel */}
-      <aside style={{width:'380px',flexShrink:0,background:NM.bg,boxShadow:`4px 0 20px ${NM.dark}`,overflow:'hidden',display:'flex',flexDirection:'column'}}>
-        {/* Header */}
-        <div style={{padding:'20px 24px',borderBottom:`1px solid rgba(255,255,255,0.04)`,background:NM.bg,boxShadow:`0 4px 12px ${NM.dark}`,zIndex:10,display:'flex',alignItems:'center',gap:'12px',flexShrink:0}}>
-          <Image src="/logo.png" alt="Vynk" width={70} height={22} style={{objectFit:'contain'}}/>
-          <div>
-            <div style={{fontSize:'13px',fontWeight:700,color:NM.text}}>Card Builder</div>
-            <div style={{fontSize:'11px',color:NM.muted}}>Design your digital identity</div>
-          </div>
-        </div>
+      {/* ── MAIN LAYOUT ── */}
+      <div style={{flex:1,display:'flex',overflow:'hidden'}}>
 
-        {/* Scrollable form */}
-        <div style={{flex:1,overflowY:'auto',padding:'24px'}}>
+        {/* LEFT — Form */}
+        <aside style={{width:'340px',flexShrink:0,background:C.g,boxShadow:`4px 0 16px ${C.nd}`,borderRight:'1px solid rgba(255,255,255,0.03)',overflowY:'auto',display:'flex',flexDirection:'column'}}>
+          <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:'20px'}}>
 
-          {/* FRONT */}
-          <div style={{marginBottom:'28px'}}>
-            <div style={nmSection}>Front — Identity <span style={{color:NM.gold}}>($10 to change)</span></div>
-            <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-              <div><label style={nmLabel}>Full Name *</label><input className="nm-input-focus" style={nmInp} placeholder="Alexandra Reyes" value={form.fullName} onChange={e=>set('fullName',e.target.value)}/></div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-                <div><label style={nmLabel}>Title / Role</label><input style={nmInp} placeholder="CEO" value={form.title} onChange={e=>set('title',e.target.value)}/></div>
-                <div><label style={nmLabel}>Company</label><input style={nmInp} placeholder="Acme Inc" value={form.company} onChange={e=>set('company',e.target.value)}/></div>
+            {/* FRONT */}
+            <div>
+              <div style={sec}>
+                <div style={{width:'20px',height:'1px',background:C.gold}}/>
+                Front — Identity
+                <span style={{color:C.gold,fontSize:'9px'}}>($10 to change)</span>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-                <div><label style={nmLabel}>Phone</label><input style={nmInp} placeholder="+1 555 0100" value={form.phone} onChange={e=>set('phone',e.target.value)}/></div>
-                <div><label style={nmLabel}>WhatsApp</label><input style={nmInp} placeholder="15550100" value={form.whatsapp} onChange={e=>set('whatsapp',e.target.value)}/></div>
-              </div>
-              <div><label style={nmLabel}>Email</label><input style={nmInp} placeholder="you@email.com" value={form.email} onChange={e=>set('email',e.target.value)}/></div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-                <div>
-                  <label style={nmLabel}>Profile Photo</label>
-                  <button onClick={()=>photoRef.current?.click()} style={{width:'100%',padding:'10px 14px',background:NM.bg,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.03)',borderRadius:'10px',color:form.photoUrl?NM.gold:NM.muted,fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s'}}>
-                    {form.photoUrl?'✓ Photo ready':'Upload photo'}
-                  </button>
-                  <input ref={photoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'photoUrl')}/>
+              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                <div><label style={lbl}>Full Name *</label><input style={nmInp} placeholder="Alexandra Reyes" value={form.fullName} onChange={e=>set('fullName',e.target.value)}/></div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                  <div><label style={lbl}>Title</label><input style={nmInp} placeholder="CEO" value={form.title} onChange={e=>set('title',e.target.value)}/></div>
+                  <div><label style={lbl}>Company</label><input style={nmInp} placeholder="Acme" value={form.company} onChange={e=>set('company',e.target.value)}/></div>
                 </div>
-                <div>
-                  <label style={nmLabel}>Logo</label>
-                  <button onClick={()=>logoRef.current?.click()} style={{width:'100%',padding:'10px 14px',background:NM.bg,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.03)',borderRadius:'10px',color:form.logoUrl?NM.gold:NM.muted,fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s'}}>
-                    {form.logoUrl?'✓ Logo ready':'Upload logo'}
-                  </button>
-                  <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                  <div><label style={lbl}>Phone</label><input style={nmInp} placeholder="+1 555 0100" value={form.phone} onChange={e=>set('phone',e.target.value)}/></div>
+                  <div><label style={lbl}>WhatsApp</label><input style={nmInp} placeholder="15550100" value={form.whatsapp} onChange={e=>set('whatsapp',e.target.value)}/></div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* BACK */}
-          <div style={{marginBottom:'28px'}}>
-            <div style={nmSection}>Back — Content <span style={{color:'#4ade80'}}>('free to change')</span></div>
-            <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-              <div><label style={nmLabel}>Tagline</label><input style={nmInp} placeholder="We craft brands that move people." value={form.tagline} onChange={e=>set('tagline',e.target.value)}/></div>
-              <div><label style={nmLabel}>Bio</label><textarea style={{...nmInp,height:'72px',resize:'none' as const,lineHeight:1.5}} placeholder="Brief description..." value={form.bio} onChange={e=>set('bio',e.target.value)}/></div>
-              <div><label style={nmLabel}>Services (comma-separated)</label><input style={nmInp} placeholder="Branding, Strategy, UX" value={form.services} onChange={e=>set('services',e.target.value)}/></div>
-              <div><label style={nmLabel}>Website</label><input style={nmInp} placeholder="yoursite.com" value={form.website} onChange={e=>set('website',e.target.value)}/></div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
-                {(['instagram','linkedin','twitter','telegram','tiktok','youtube'] as const).map(k=>(
-                  <div key={k}><label style={nmLabel}>{k.charAt(0).toUpperCase()+k.slice(1)}</label><input style={nmInp} placeholder="@handle" value={form[k]} onChange={e=>set(k,e.target.value)}/></div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* DESIGN */}
-          <div style={{marginBottom:'28px'}}>
-            <div style={nmSection}>Design <span style={{color:'#4ade80'}}>(always free)</span></div>
-
-            {/* Font */}
-            <div style={{marginBottom:'14px'}}>
-              <label style={nmLabel}>Font</label>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
-                {FONTS.map(f=>(
-                  <button key={f.id} style={{fontFamily:f.css,padding:'8px 4px',borderRadius:'10px',background:NM.bg,boxShadow:design.font===f.id?insetSm:raisedSm,border:design.font===f.id?`1px solid rgba(212,168,67,0.2)`:'1px solid rgba(255,255,255,0.03)',color:design.font===f.id?NM.gold:NM.muted,fontSize:'11px',fontWeight:600,cursor:'pointer',transition:'all .15s',outline:'none'}} onClick={()=>setD('font',f.id)}>
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Mode */}
-            <div style={{marginBottom:'14px'}}>
-              <label style={nmLabel}>Background mode</label>
-              <div style={{display:'flex',gap:'8px'}}>
-                {['solid','gradient'].map(m=>(
-                  <button key={m} style={{flex:1,padding:'9px',borderRadius:'10px',background:NM.bg,boxShadow:design.mode===m?insetSm:raisedSm,border:design.mode===m?'1px solid rgba(212,168,67,0.2)':'1px solid rgba(255,255,255,0.03)',color:design.mode===m?NM.gold:NM.muted,fontSize:'12px',fontWeight:600,cursor:'pointer',textTransform:'capitalize',transition:'all .15s',outline:'none'}} onClick={()=>setD('mode',m)}>
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Colors */}
-            <div style={{display:'grid',gridTemplateColumns:design.mode==='gradient'?'1fr 1fr 1fr':'1fr 1fr',gap:'8px',marginBottom:'12px'}}>
-              <div><label style={nmLabel}>Background</label><input type="color" value={design.bg} onChange={e=>setD('bg',e.target.value)} style={{width:'100%',height:'34px',borderRadius:'8px',border:'none',background:NM.bg,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
-              {design.mode==='gradient'&&<div><label style={nmLabel}>Gradient end</label><input type="color" value={design.bg2} onChange={e=>setD('bg2',e.target.value)} style={{width:'100%',height:'34px',borderRadius:'8px',border:'none',background:NM.bg,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>}
-              <div><label style={nmLabel}>Text</label><input type="color" value={design.textColor} onChange={e=>setD('textColor',e.target.value)} style={{width:'100%',height:'34px',borderRadius:'8px',border:'none',background:NM.bg,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
-            </div>
-
-            {/* Palettes */}
-            <label style={nmLabel}>Quick palettes</label>
-            <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
-              {PALETTES.map((p,i)=>(
-                <button key={i} title={p.label} onClick={()=>setDesign(d=>({...d,...p}))}
-                  style={{width:'32px',height:'32px',borderRadius:'8px',border:'2px solid rgba(255,255,255,0.04)',cursor:'pointer',background:p.mode==='gradient'?`linear-gradient(135deg,${p.bg},${p.bg2})`:p.bg,boxShadow:raisedSm,transition:'transform .15s'}}
-                  onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.15)')}
-                  onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}/>
-              ))}
-            </div>
-          </div>
-
-          {/* Promo */}
-          <div style={{marginBottom:'28px'}}>
-            <label style={nmLabel}>Promo code</label>
-            <div style={{display:'flex',gap:'8px'}}>
-              <input style={{...nmInp,flex:1}} placeholder="VYNK50" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
-              <button onClick={validatePromo} style={{padding:'10px 16px',background:NM.bg,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.03)',borderRadius:'10px',color:NM.muted,fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap'}}>Apply</button>
-            </div>
-            {promoValid===true&&<p style={{fontSize:'12px',color:'#4ade80',marginTop:'6px'}}>✓ Promo applied!</p>}
-            {promoValid===false&&<p style={{fontSize:'12px',color:'#ef4444',marginTop:'6px'}}>Invalid or expired code</p>}
-          </div>
-
-          {/* Submit */}
-          <button onClick={()=>submit()} disabled={submitting}
-            style={{width:'100%',padding:'16px',background:'linear-gradient(135deg,#d4a843,#e8c96a,#a07830)',color:'#0d0d14',borderRadius:'16px',fontWeight:700,fontSize:'15px',border:'none',cursor:'pointer',boxShadow:goldRaised,opacity:submitting?.6:1,fontFamily:"'DM Sans',sans-serif",transition:'all .15s',marginBottom:'8px'}}>
-            {submitting?'Processing…':existingCard?'Update my card':'✨ Generate my card — $20'}
-          </button>
-          <p style={{fontSize:'12px',color:NM.subtle,textAlign:'center'}}>
-            {existingCard?'Free changes save instantly · Identity changes cost $10':'One-time $20 · Colors & content updates free'}
-          </p>
-        </div>
-      </aside>
-
-      {/* Right — preview */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'48px',background:NM.bg,gap:'24px'}}>
-        <p style={{fontSize:'11px',color:NM.muted,textTransform:'uppercase',letterSpacing:'.08em'}}>Live Preview — click to flip</p>
-
-        {/* Neumorphic card container */}
-        <div style={{width:'380px',background:NM.bg,boxShadow:`10px 10px 28px ${NM.dark}, -6px -6px 18px ${NM.lite}`,borderRadius:'28px',padding:'12px',border:'1px solid rgba(255,255,255,0.04)'}}>
-          <div style={{width:'100%',perspective:'1200px'}}>
-            <div style={{position:'relative',transformStyle:'preserve-3d',transition:'transform 0.7s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',minHeight:'210px'}} onClick={()=>setIsFlipped(f=>!f)}>
-              {/* Front */}
-              <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',background:cardBg,borderRadius:'18px',padding:'24px',color:design.textColor,minHeight:'210px',display:'flex',flexDirection:'column',justifyContent:'space-between',fontFamily:fontCss}}>
-                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'14px'}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:'8px',fontWeight:700,letterSpacing:'.14em',opacity:.3,textTransform:'uppercase',marginBottom:'12px'}}>VYNK</div>
-                    <div style={{fontSize:'20px',fontWeight:700,lineHeight:1.2,marginBottom:'3px'}}>{form.fullName||'Your Name'}</div>
-                    <div style={{fontSize:'12px',opacity:.7}}>{[form.title,form.company].filter(Boolean).join(' · ')||'Title · Company'}</div>
-                    {form.tagline&&<div style={{fontSize:'10px',opacity:.55,marginTop:'8px',lineHeight:1.6}}>{form.tagline}</div>}
+                <div><label style={lbl}>Email</label><input style={nmInp} placeholder="you@email.com" value={form.email} onChange={e=>set('email',e.target.value)}/></div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                  <div>
+                    <label style={lbl}>Photo</label>
+                    <button onClick={()=>photoRef.current?.click()} style={{width:'100%',padding:'9px',background:C.g,boxShadow:form.photoUrl?insetSm:raisedSm,border:`1px solid ${form.photoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.photoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                      {form.photoUrl?'✓ Photo':'Upload'}
+                    </button>
+                    <input ref={photoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'photoUrl')}/>
                   </div>
-                  <div style={{width:'50px',height:'50px',borderRadius:'50%',overflow:'hidden',border:'2px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'17px',fontWeight:700,flexShrink:0}}>
-                    {form.photoUrl?<img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:initials}
+                  <div>
+                    <label style={lbl}>Logo</label>
+                    <button onClick={()=>logoRef.current?.click()} style={{width:'100%',padding:'9px',background:C.g,boxShadow:form.logoUrl?insetSm:raisedSm,border:`1px solid ${form.logoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.logoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                      {form.logoUrl?'✓ Logo':'Upload'}
+                    </button>
+                    <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
                   </div>
                 </div>
-                <div style={{fontSize:'10px',opacity:.5,marginTop:'14px'}}>{form.email||''}</div>
               </div>
-              {/* Back */}
-              <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',position:'absolute',top:0,left:0,right:0,bottom:0,background:cardBg,borderRadius:'18px',padding:'24px',color:design.textColor,minHeight:'210px',display:'flex',flexDirection:'column',gap:'10px',filter:'brightness(0.85)',fontFamily:fontCss}}>
-                <div style={{fontSize:'8px',opacity:.3,fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase'}}>VYNK · BACK</div>
-                {form.services&&<div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{form.services.split(',').filter(Boolean).map(s=><span key={s} style={{padding:'2px 8px',borderRadius:'20px',fontSize:'9px',fontWeight:600,background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.2)'}}>{s.trim()}</span>)}</div>}
-                {form.bio&&<div style={{fontSize:'10px',opacity:.6,lineHeight:1.6}}>{form.bio}</div>}
-                <div style={{display:'flex',gap:'5px',flexWrap:'wrap',marginTop:'auto'}}>
-                  {(['whatsapp','instagram','linkedin','twitter','tiktok'] as const).filter(k=>form[k]).map(k=>(
-                    <span key={k} style={{width:'26px',height:'26px',borderRadius:'7px',background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:700}}>{k.slice(0,2).toUpperCase()}</span>
+            </div>
+
+            {/* BACK */}
+            <div>
+              <div style={sec}>
+                <div style={{width:'20px',height:'1px',background:'#4ade80'}}/>
+                Back — Content
+                <span style={{color:'#4ade80',fontSize:'9px'}}>(free)</span>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                <div><label style={lbl}>Tagline</label><input style={nmInp} placeholder="We craft brands that move people." value={form.tagline} onChange={e=>set('tagline',e.target.value)}/></div>
+                <div><label style={lbl}>Bio</label><textarea style={{...nmInp,height:'64px',resize:'none' as const,lineHeight:1.5}} value={form.bio} onChange={e=>set('bio',e.target.value)} placeholder="Brief description..."/></div>
+                <div><label style={lbl}>Services (comma-separated)</label><input style={nmInp} placeholder="Branding, Strategy, UX" value={form.services} onChange={e=>set('services',e.target.value)}/></div>
+                <div><label style={lbl}>Website</label><input style={nmInp} placeholder="yoursite.com" value={form.website} onChange={e=>set('website',e.target.value)}/></div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                  {(['instagram','linkedin','twitter','telegram','tiktok','youtube'] as const).map(k=>(
+                    <div key={k}><label style={lbl}>{k.charAt(0).toUpperCase()+k.slice(1)}</label><input style={nmInp} placeholder="@handle" value={form[k]} onChange={e=>set(k,e.target.value)}/></div>
                   ))}
                 </div>
               </div>
             </div>
+
+            {/* DESIGN */}
+            <div>
+              <div style={sec}>
+                <div style={{width:'20px',height:'1px',background:'#a78bfa'}}/>
+                Design
+                <span style={{color:'#a78bfa',fontSize:'9px'}}>(always free)</span>
+              </div>
+
+              {/* Templates */}
+              <label style={lbl}>Templates</label>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'6px',marginBottom:'14px'}}>
+                {TEMPLATES.map(t=>(
+                  <button key={t.id} title={t.label} onClick={()=>applyTemplate(t)}
+                    style={{
+                      height:'36px', borderRadius:'10px', cursor:'pointer',
+                      background:t.mode==='gradient'?`linear-gradient(135deg,${t.bg},${t.bg2})`:t.bg,
+                      border:`2px solid ${design.template===t.id?C.gold:'rgba(255,255,255,0.06)'}`,
+                      boxShadow:design.template===t.id?`0 0 0 1px ${C.gold}, ${goldBox}`:raisedSm,
+                      transition:'all .15s', position:'relative', overflow:'hidden',
+                    }}>
+                    <div style={{position:'absolute',bottom:'3px',right:'4px',width:'6px',height:'6px',borderRadius:'50%',background:t.accent,opacity:.8}}/>
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'14px'}}>
+                {TEMPLATES.map(t=>(
+                  <button key={t.id} onClick={()=>applyTemplate(t)}
+                    style={{padding:'4px 10px',borderRadius:'20px',border:'none',background:design.template===t.id?`rgba(212,168,79,0.12)`:'rgba(255,255,255,0.04)',color:design.template===t.id?C.gold:C.smoke,fontSize:'10px',fontWeight:design.template===t.id?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s'}}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fonts */}
+              <label style={lbl}>Font</label>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'14px'}}>
+                {FONTS.map(f=>(
+                  <button key={f.id} onClick={()=>setD('font',f.id)}
+                    style={{fontFamily:f.css,padding:'8px 4px',borderRadius:'10px',background:C.g,boxShadow:design.font===f.id?insetSm:raisedSm,border:`1px solid ${design.font===f.id?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.font===f.id?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',transition:'all .15s',outline:'none'}}>
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Mode */}
+              <label style={lbl}>Background mode</label>
+              <div style={{display:'flex',gap:'6px',marginBottom:'14px'}}>
+                {['solid','gradient'].map(m=>(
+                  <button key={m} onClick={()=>setD('mode',m)}
+                    style={{flex:1,padding:'8px',borderRadius:'10px',background:C.g,boxShadow:design.mode===m?insetSm:raisedSm,border:`1px solid ${design.mode===m?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.mode===m?C.gold:C.smoke,fontSize:'12px',fontWeight:600,cursor:'pointer',textTransform:'capitalize' as const,transition:'all .15s',outline:'none'}}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+
+              {/* Colors */}
+              <label style={lbl}>Custom colors</label>
+              <div style={{display:'grid',gridTemplateColumns:design.mode==='gradient'?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:'8px',marginBottom:'8px'}}>
+                <div><label style={{...lbl,fontSize:'9px'}}>BG</label><input type="color" value={design.bg} onChange={e=>setD('bg',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
+                {design.mode==='gradient'&&<div><label style={{...lbl,fontSize:'9px'}}>BG2</label><input type="color" value={design.bg2} onChange={e=>setD('bg2',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>}
+                <div><label style={{...lbl,fontSize:'9px'}}>Text</label><input type="color" value={design.textColor} onChange={e=>setD('textColor',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
+                <div><label style={{...lbl,fontSize:'9px'}}>Accent</label><input type="color" value={design.accent||C.gold} onChange={e=>setD('accent',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
+              </div>
+            </div>
+
+            {/* PROMO */}
+            <div>
+              <label style={lbl}>Promo code</label>
+              <div style={{display:'flex',gap:'8px'}}>
+                <input style={{...nmInp,flex:1}} placeholder="VYNK50" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
+                <button onClick={validatePromo} style={{padding:'9px 14px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',color:C.smoke,fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap'}}>Apply</button>
+              </div>
+              {promoValid===true&&<p style={{fontSize:'11px',color:'#4ade80',marginTop:'5px'}}>✓ Promo applied!</p>}
+              {promoValid===false&&<p style={{fontSize:'11px',color:'#ef4444',marginTop:'5px'}}>Invalid or expired code</p>}
+            </div>
+
+            {/* SUBMIT */}
+            <div>
+              <button onClick={()=>submit()} disabled={submitting}
+                style={{width:'100%',padding:'15px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'14px',fontWeight:700,fontSize:'15px',border:'none',cursor:'pointer',boxShadow:goldBox,opacity:submitting?.6:1,fontFamily:"'DM Sans',sans-serif",transition:'all .15s',marginBottom:'8px'}}>
+                {submitting?'Processing…':existingCard?'Update my card':'✨ Generate my card — $20'}
+              </button>
+              <p style={{fontSize:'11px',color:C.smoke,textAlign:'center' as const,opacity:.7}}>
+                {existingCard?'Free changes save instantly · Identity changes cost $10':'One-time $20 · Colors & content free forever'}
+              </p>
+            </div>
+
           </div>
+        </aside>
+
+        {/* RIGHT — Preview */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:`radial-gradient(ellipse 60% 60% at 50% 50%, rgba(212,168,79,0.04) 0%, transparent 70%)`,padding:'40px',gap:'20px',overflowY:'auto'}}>
+
+          <p style={{fontSize:'10px',color:C.smoke,textTransform:'uppercase' as const,letterSpacing:'.1em'}}>
+            Live Preview — click to flip
+          </p>
+
+          {/* Card container — neumorphic tray */}
+          <div style={{
+            background:C.g,
+            boxShadow:`12px 12px 32px ${C.nd}, -8px -8px 22px ${C.nl}`,
+            borderRadius:'28px',
+            padding:'24px',
+            border:'1px solid rgba(255,255,255,0.04)',
+            width:'100%',
+            maxWidth:'520px',
+          }}>
+            {/* Card flip */}
+            <div style={{perspective:'1200px'}}>
+              <div
+                onClick={()=>setIsFlipped(f=>!f)}
+                style={{
+                  position:'relative', transformStyle:'preserve-3d',
+                  transition:'transform 0.7s cubic-bezier(0.23,1,0.32,1)',
+                  transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',
+                  cursor:'pointer', minHeight:'280px',
+                  borderRadius:'20px', overflow:'visible',
+                }}>
+
+                {/* FRONT */}
+                <div style={{
+                  backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
+                  background:cardBg, borderRadius:'20px', padding:'32px',
+                  color:design.textColor, minHeight:'280px',
+                  display:'flex', flexDirection:'column', justifyContent:'space-between',
+                  fontFamily:fontCss,
+                  boxShadow:`0 20px 60px ${C.nd}`,
+                }}>
+                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'16px'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.14em',opacity:.3,textTransform:'uppercase' as const,marginBottom:'16px',color:design.accent}}>VYNK</div>
+                      <div style={{fontSize:'26px',fontWeight:700,lineHeight:1.2,marginBottom:'6px'}}>{form.fullName||'Your Name'}</div>
+                      <div style={{fontSize:'13px',opacity:.7,marginBottom:'4px'}}>{[form.title,form.company].filter(Boolean).join(' · ')||'Title · Company'}</div>
+                      {form.tagline&&<div style={{fontSize:'11px',opacity:.55,marginTop:'10px',lineHeight:1.6,maxWidth:'260px'}}>{form.tagline}</div>}
+                    </div>
+                    <div style={{width:'64px',height:'64px',borderRadius:'50%',overflow:'hidden',border:`2px solid ${design.accent}40`,background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px',fontWeight:700,flexShrink:0}}>
+                      {form.photoUrl?<img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:initials}
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginTop:'24px'}}>
+                    <div>
+                      {form.email&&<div style={{fontSize:'11px',opacity:.6,marginBottom:'2px'}}>{form.email}</div>}
+                      {form.website&&<div style={{fontSize:'11px',opacity:.4}}>{form.website.replace(/^https?:\/\//,'')}</div>}
+                    </div>
+                    {form.logoUrl&&<img src={form.logoUrl} alt="logo" style={{height:'28px',objectFit:'contain',opacity:.85}}/>}
+                  </div>
+                  {/* Accent line */}
+                  <div style={{position:'absolute',bottom:0,left:'32px',right:'32px',height:'2px',background:`linear-gradient(90deg,transparent,${design.accent},transparent)`,opacity:.4,borderRadius:'2px'}}/>
+                </div>
+
+                {/* BACK */}
+                <div style={{
+                  backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
+                  transform:'rotateY(180deg)',
+                  position:'absolute', top:0, left:0, right:0, bottom:0,
+                  background:cardBg, borderRadius:'20px', padding:'32px',
+                  color:design.textColor, minHeight:'280px',
+                  display:'flex', flexDirection:'column', gap:'14px',
+                  filter:'brightness(0.85)', fontFamily:fontCss,
+                }}>
+                  <div style={{fontSize:'9px',opacity:.3,fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase' as const,color:design.accent}}>VYNK · SERVICES</div>
+                  {form.services&&(
+                    <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                      {form.services.split(',').filter(Boolean).map(s=>(
+                        <span key={s} style={{padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:600,background:`${design.accent}20`,border:`1px solid ${design.accent}40`,color:design.accent}}>{s.trim()}</span>
+                      ))}
+                    </div>
+                  )}
+                  {form.bio&&<div style={{fontSize:'12px',opacity:.65,lineHeight:1.7}}>{form.bio}</div>}
+                  <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'auto'}}>
+                    {(['whatsapp','instagram','linkedin','twitter','tiktok','telegram'] as const).filter(k=>form[k]).map(k=>(
+                      <span key={k} style={{width:'30px',height:'30px',borderRadius:'8px',background:`${design.accent}15`,border:`1px solid ${design.accent}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:700,color:design.accent}}>
+                        {k.slice(0,2).toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Flip hint */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'16px'}}>
+              <div style={{width:'32px',height:'1px',background:`rgba(212,168,79,0.2)`}}/>
+              <span style={{fontSize:'10px',color:C.smoke,letterSpacing:'.06em'}}>click to flip</span>
+              <div style={{width:'32px',height:'1px',background:`rgba(212,168,79,0.2)`}}/>
+            </div>
+          </div>
+
+          {/* Template label */}
+          <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'8px 16px',fontSize:'11px',color:C.smoke}}>
+            Template: <span style={{color:C.gold,fontWeight:600}}>{TEMPLATES.find(t=>t.id===design.template)?.label||'Custom'}</span>
+            {existingCard&&<> · Active at <span style={{color:C.gold}}>/c/{existingCard.slug}</span></>}
+          </div>
+
         </div>
-
-        <p style={{fontSize:'12px',color:NM.muted,textAlign:'center',maxWidth:'320px'}}>
-          Preview of your card. After payment it goes live at your unique link with QR code.
-        </p>
-
-        {existingCard&&(
-          <div style={{background:NM.bg,boxShadow:insetSm,borderRadius:'12px',padding:'12px 20px',fontSize:'12px',color:NM.muted,border:'1px solid rgba(255,255,255,0.03)'}}>
-            Active card: <span style={{color:NM.gold}}>/c/{existingCard.slug}</span>
-          </div>
-        )}
       </div>
-    </main>
+    </div>
   )
 }
