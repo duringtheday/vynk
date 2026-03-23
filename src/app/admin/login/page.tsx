@@ -47,8 +47,8 @@ export default function AdminLoginPage() {
       <div style={{ width:'100%', maxWidth:'340px', display:'flex', flexDirection:'column', alignItems:'center' }}>
 
         {/* Logo con contenedor neumórfico */}
-        <div style={{ padding:'18px 28px', background:C.g, boxShadow:`8px 8px 20px ${C.nd}, -5px -5px 14px ${C.nl}, inset 0 1px 0 rgba(212,168,79,0.08)`, borderRadius:'20px', border:'1px solid rgba(212,168,79,0.07)', marginBottom:'28px' }}>
-          <img src="/logo.png" alt="Vynk" style={{ height:'36px', objectFit:'contain', display:'block' }} />
+        <div style={{ padding:'10px 10px', background:C.g, boxShadow:`8px 8px 20px ${C.nd}, -5px -5px 14px ${C.nl}, inset 0 1px 0 rgba(212,168,79,0.08)`, borderRadius:'20px', border:'1px solid rgba(212,168,79,0.07)', marginBottom:'28px' }}>
+          <img src="/logo.png" alt="Vynk" style={{ width:'100px', height:'100%', filter:'drop-shadow(0 2px 8px rgba(0,0,0,0.6))', display:'block', borderRadius:'12px' }} />
         </div>
 
         {/* Vault card */}
