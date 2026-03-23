@@ -88,6 +88,18 @@ export default function AdminDashboard() {
   const [loading,setLoading]     = useState(true)
   const [timer,setTimer]         = useState(15*60)
   const [collapsed,setCollapsed] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(()=>{
+    const check = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if(mobile) setCollapsed(true)
+    }
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  },[])
   const router = useRouter()
 
   const load = useCallback(async(s:Section)=>{
@@ -517,6 +529,11 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
 
   async function toggle(id:string,current:boolean){
     await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,isActive:!current})})
+    reload()
+  }
+  async function deletePromo(id:string){
+    if(!confirm("Delete this promo code?")) return
+    await fetch("/api/admin/dashboard",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})})
     reload()
   }
 

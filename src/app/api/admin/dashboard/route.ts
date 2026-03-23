@@ -126,3 +126,10 @@ export async function PATCH(req: NextRequest) {
   await db.update(promoCodes).set({ isActive }).where(eq(promoCodes.id, id))
   return NextResponse.json({ ok: true })
 }
+
+export async function DELETE(req: NextRequest) {
+  if (!await checkAuth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await req.json()
+  await db.delete(promoCodes).where(eq(promoCodes.id, id))
+  return NextResponse.json({ ok: true })
+}
