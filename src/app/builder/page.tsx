@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -15,19 +15,118 @@ const raisedSm = `3px 3px 8px ${C.nd}, -2px -2px 6px ${C.nl}`
 const insetSm  = `inset 2px 2px 6px ${C.nd}, inset -2px -2px 5px ${C.nl}`
 const goldBox  = `4px 4px 14px ${C.nd}, -2px -2px 8px ${C.nl}, 0 0 22px rgba(212,168,79,0.2)`
 
-// ── Card templates ─────────────────────────────────────────────
+// ── 25 PRO Templates ───────────────────────────────────────────
 const TEMPLATES = [
-  { id:'minimal',   label:'Minimal',    bg:'#0D0F12', bg2:'#1a1a24', textColor:'#BFC3C9', accent:'#D4A84F', mode:'gradient' },
-  { id:'gold',      label:'Gold',       bg:'#1a0e00', bg2:'#3d2200', textColor:'#f5e6c8', accent:'#D4A84F', mode:'gradient' },
-  { id:'midnight',  label:'Midnight',   bg:'#0a0a1a', bg2:'#1a1a3e', textColor:'#e8e8f0', accent:'#6366f1', mode:'gradient' },
-  { id:'forest',    label:'Forest',     bg:'#022c22', bg2:'#064e3b', textColor:'#ecfdf5', accent:'#4ade80', mode:'gradient' },
-  { id:'royal',     label:'Royal',      bg:'#1e1b4b', bg2:'#312e81', textColor:'#ede9fe', accent:'#a78bfa', mode:'gradient' },
-  { id:'ocean',     label:'Ocean',      bg:'#0f172a', bg2:'#1e3a5f', textColor:'#e2e8f0', accent:'#38bdf8', mode:'gradient' },
-  { id:'carbon',    label:'Carbon',     bg:'#050607', bg2:'#111118', textColor:'#BFC3C9', accent:'#D4A84F', mode:'gradient' },
-  { id:'rose',      label:'Rose',       bg:'#1a0010', bg2:'#3d0020', textColor:'#fce7f3', accent:'#f472b6', mode:'gradient' },
-  { id:'pure-dark', label:'Pure Dark',  bg:'#000000', bg2:'#111111', textColor:'#ffffff', accent:'#D4A84F', mode:'solid' },
-  { id:'pure-light',label:'Pure Light', bg:'#ffffff', bg2:'#f1f5f9', textColor:'#0f172a', accent:'#D4A84F', mode:'solid' },
+  // Dark Premium
+  { id:'vynk-dark',     label:'Vynk Dark',      cat:'Premium',
+    bg:'#0D0F12', bg2:'#1a1a24', textColor:'#BFC3C9', accent:'#D4A84F', mode:'gradient',
+    overlay:`radial-gradient(ellipse 80% 60% at 20% 80%, rgba(212,168,79,0.08) 0%, transparent 60%)`,
+    border:'rgba(212,168,79,0.15)', glow:'rgba(212,168,79,0.12)' },
+  { id:'carbon-gold',   label:'Carbon Gold',     cat:'Premium',
+    bg:'#050607', bg2:'#111118', textColor:'#D4A84F', accent:'#D4A84F', mode:'gradient',
+    overlay:`linear-gradient(135deg, rgba(212,168,79,0.06) 0%, transparent 50%, rgba(212,168,79,0.03) 100%)`,
+    border:'rgba(212,168,79,0.25)', glow:'rgba(212,168,79,0.18)' },
+  { id:'obsidian',      label:'Obsidian',        cat:'Premium',
+    bg:'#080810', bg2:'#0f0f1e', textColor:'#e8e8f8', accent:'#818cf8', mode:'gradient',
+    overlay:`radial-gradient(circle at 80% 20%, rgba(129,140,248,0.12) 0%, transparent 50%)`,
+    border:'rgba(129,140,248,0.15)', glow:'rgba(129,140,248,0.1)' },
+  { id:'midnight-pro',  label:'Midnight Pro',    cat:'Premium',
+    bg:'#0a0a1e', bg2:'#1a1a3e', textColor:'#e8e8f0', accent:'#6366f1', mode:'gradient',
+    overlay:`conic-gradient(from 180deg at 50% 50%, rgba(99,102,241,0.06) 0%, transparent 60%)`,
+    border:'rgba(99,102,241,0.2)', glow:'rgba(99,102,241,0.12)' },
+  { id:'phantom',       label:'Phantom',         cat:'Premium',
+    bg:'#0a0a0a', bg2:'#1a0a1a', textColor:'#f0e8f8', accent:'#c084fc', mode:'gradient',
+    overlay:`radial-gradient(ellipse 60% 80% at 80% 0%, rgba(192,132,252,0.1) 0%, transparent 60%)`,
+    border:'rgba(192,132,252,0.15)', glow:'rgba(192,132,252,0.1)' },
+
+  // Metal & Texture
+  { id:'titanium',      label:'Titanium',        cat:'Metal',
+    bg:'#1c1c20', bg2:'#2a2a30', textColor:'#e8eaed', accent:'#9aa0a6', mode:'gradient',
+    overlay:`repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 8px)`,
+    border:'rgba(154,160,166,0.2)', glow:'rgba(154,160,166,0.08)' },
+  { id:'steel',         label:'Steel Blue',      cat:'Metal',
+    bg:'#0f172a', bg2:'#1e3a5f', textColor:'#e2e8f0', accent:'#38bdf8', mode:'gradient',
+    overlay:`linear-gradient(180deg, rgba(56,189,248,0.06) 0%, transparent 100%)`,
+    border:'rgba(56,189,248,0.15)', glow:'rgba(56,189,248,0.1)' },
+  { id:'chrome',        label:'Chrome',          cat:'Metal',
+    bg:'#12131a', bg2:'#1e2030', textColor:'#BFC3C9', accent:'#BFC3C9', mode:'gradient',
+    overlay:`linear-gradient(135deg, rgba(191,195,201,0.08) 0%, transparent 40%, rgba(191,195,201,0.04) 100%)`,
+    border:'rgba(191,195,201,0.15)', glow:'rgba(191,195,201,0.08)' },
+  { id:'copper',        label:'Copper',          cat:'Metal',
+    bg:'#1a0e08', bg2:'#2d1a0e', textColor:'#fde8d0', accent:'#c2855a', mode:'gradient',
+    overlay:`radial-gradient(circle at 30% 70%, rgba(194,133,90,0.12) 0%, transparent 50%)`,
+    border:'rgba(194,133,90,0.2)', glow:'rgba(194,133,90,0.12)' },
+  { id:'platinum',      label:'Platinum',        cat:'Metal',
+    bg:'#f0f0f5', bg2:'#e0e0ea', textColor:'#1a1a2e', accent:'#1a1a2e', mode:'gradient',
+    overlay:`linear-gradient(135deg, rgba(255,255,255,0.5) 0%, transparent 60%)`,
+    border:'rgba(26,26,46,0.1)', glow:'rgba(26,26,46,0.05)' },
+
+  // Nature & Organic
+  { id:'forest-pro',    label:'Forest',          cat:'Nature',
+    bg:'#022c22', bg2:'#064e3b', textColor:'#ecfdf5', accent:'#4ade80', mode:'gradient',
+    overlay:`radial-gradient(ellipse 100% 60% at 50% 100%, rgba(74,222,128,0.08) 0%, transparent 60%)`,
+    border:'rgba(74,222,128,0.15)', glow:'rgba(74,222,128,0.1)' },
+  { id:'ocean-deep',    label:'Ocean Deep',      cat:'Nature',
+    bg:'#0c1445', bg2:'#1a237e', textColor:'#e3f2fd', accent:'#29b6f6', mode:'gradient',
+    overlay:`repeating-linear-gradient(0deg, rgba(41,182,246,0.03) 0px, rgba(41,182,246,0.03) 1px, transparent 1px, transparent 20px)`,
+    border:'rgba(41,182,246,0.15)', glow:'rgba(41,182,246,0.1)' },
+  { id:'aurora',        label:'Aurora',          cat:'Nature',
+    bg:'#0a1628', bg2:'#0d2137', textColor:'#e0f7fa', accent:'#4dd0e1', mode:'gradient',
+    overlay:`linear-gradient(135deg, rgba(77,208,225,0.08) 0%, rgba(129,212,250,0.06) 50%, rgba(165,214,167,0.06) 100%)`,
+    border:'rgba(77,208,225,0.15)', glow:'rgba(77,208,225,0.1)' },
+  { id:'volcanic',      label:'Volcanic',        cat:'Nature',
+    bg:'#1a0500', bg2:'#3d0a00', textColor:'#fff3e0', accent:'#ff7043', mode:'gradient',
+    overlay:`radial-gradient(circle at 50% 100%, rgba(255,112,67,0.15) 0%, transparent 60%)`,
+    border:'rgba(255,112,67,0.2)', glow:'rgba(255,112,67,0.12)' },
+  { id:'rose-gold',     label:'Rose Gold',       cat:'Nature',
+    bg:'#1a0814', bg2:'#2d1020', textColor:'#fce4ec', accent:'#f48fb1', mode:'gradient',
+    overlay:`radial-gradient(ellipse 80% 80% at 20% 20%, rgba(244,143,177,0.1) 0%, transparent 60%)`,
+    border:'rgba(244,143,177,0.15)', glow:'rgba(244,143,177,0.1)' },
+
+  // Geometric & Abstract
+  { id:'circuit',       label:'Circuit',         cat:'Tech',
+    bg:'#001a0e', bg2:'#003320', textColor:'#00ff88', accent:'#00ff88', mode:'gradient',
+    overlay:`repeating-linear-gradient(90deg, rgba(0,255,136,0.03) 0px, rgba(0,255,136,0.03) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(0deg, rgba(0,255,136,0.03) 0px, rgba(0,255,136,0.03) 1px, transparent 1px, transparent 40px)`,
+    border:'rgba(0,255,136,0.2)', glow:'rgba(0,255,136,0.12)' },
+  { id:'holographic',   label:'Holographic',     cat:'Tech',
+    bg:'#0d0d1a', bg2:'#1a0d2e', textColor:'#f0e8ff', accent:'#c084fc', mode:'gradient',
+    overlay:`linear-gradient(135deg, rgba(192,132,252,0.1) 0%, rgba(56,189,248,0.08) 33%, rgba(74,222,128,0.08) 66%, rgba(251,191,36,0.1) 100%)`,
+    border:'rgba(192,132,252,0.2)', glow:'rgba(192,132,252,0.12)' },
+  { id:'neon-noir',     label:'Neon Noir',       cat:'Tech',
+    bg:'#050510', bg2:'#0a0a20', textColor:'#f0f0ff', accent:'#00f0ff', mode:'gradient',
+    overlay:`radial-gradient(circle at 50% 50%, rgba(0,240,255,0.05) 0%, transparent 70%)`,
+    border:'rgba(0,240,255,0.2)', glow:'rgba(0,240,255,0.15)' },
+  { id:'matrix',        label:'Matrix',          cat:'Tech',
+    bg:'#000800', bg2:'#001200', textColor:'#00ff41', accent:'#00ff41', mode:'gradient',
+    overlay:`repeating-linear-gradient(180deg, rgba(0,255,65,0.02) 0px, rgba(0,255,65,0.02) 2px, transparent 2px, transparent 8px)`,
+    border:'rgba(0,255,65,0.2)', glow:'rgba(0,255,65,0.1)' },
+  { id:'diamond',       label:'Diamond',         cat:'Tech',
+    bg:'#0a0a14', bg2:'#14142a', textColor:'#f0f8ff', accent:'#67e8f9', mode:'gradient',
+    overlay:`repeating-linear-gradient(45deg, rgba(103,232,249,0.03) 0px, rgba(103,232,249,0.03) 1px, transparent 1px, transparent 14px)`,
+    border:'rgba(103,232,249,0.15)', glow:'rgba(103,232,249,0.1)' },
+
+  // Classic & Minimal
+  { id:'pure-black',    label:'Pure Black',      cat:'Classic',
+    bg:'#000000', bg2:'#0a0a0a', textColor:'#ffffff', accent:'#D4A84F', mode:'solid',
+    overlay:'none', border:'rgba(212,168,79,0.1)', glow:'rgba(212,168,79,0.05)' },
+  { id:'ivory',         label:'Ivory',           cat:'Classic',
+    bg:'#faf8f5', bg2:'#f0ece5', textColor:'#1a1a1a', accent:'#8b6914', mode:'solid',
+    overlay:`linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 60%)`,
+    border:'rgba(139,105,20,0.1)', glow:'rgba(139,105,20,0.05)' },
+  { id:'slate',         label:'Slate',           cat:'Classic',
+    bg:'#1e293b', bg2:'#334155', textColor:'#f1f5f9', accent:'#94a3b8', mode:'gradient',
+    overlay:'none', border:'rgba(148,163,184,0.1)', glow:'rgba(148,163,184,0.05)' },
+  { id:'royal-blue',    label:'Royal Blue',      cat:'Classic',
+    bg:'#1e1b4b', bg2:'#312e81', textColor:'#ede9fe', accent:'#a78bfa', mode:'gradient',
+    overlay:`radial-gradient(ellipse 60% 40% at 80% 20%, rgba(167,139,250,0.15) 0%, transparent 60%)`,
+    border:'rgba(167,139,250,0.15)', glow:'rgba(167,139,250,0.1)' },
+  { id:'sunset',        label:'Sunset',          cat:'Classic',
+    bg:'#1a0a00', bg2:'#2d1a00', textColor:'#fff7ed', accent:'#fb923c', mode:'gradient',
+    overlay:`linear-gradient(135deg, rgba(251,146,60,0.1) 0%, rgba(239,68,68,0.08) 100%)`,
+    border:'rgba(251,146,60,0.15)', glow:'rgba(251,146,60,0.1)' },
 ]
+
+const CATS = [...new Set(TEMPLATES.map(t=>t.cat))]
 
 const FONTS = [
   { id:'dm',        name:'DM Sans',    css:"'DM Sans',sans-serif" },
@@ -45,6 +144,7 @@ type Form = {
   twitter:string;tiktok:string;youtube:string;website:string;address:string;
 }
 type Design = { template:string;font:string;mode:string;bg:string;bg2:string;textColor:string;accent:string }
+type Pos = { x:number; y:number }
 
 const INIT_FORM: Form = {
   fullName:'',title:'',company:'',photoUrl:'',logoUrl:'',phone:'',whatsapp:'',
@@ -52,31 +152,26 @@ const INIT_FORM: Form = {
   twitter:'',tiktok:'',youtube:'',website:'',address:'',
 }
 const INIT_DESIGN: Design = {
-  template:'minimal',font:'dm',mode:'gradient',
+  template:'vynk-dark',font:'dm',mode:'gradient',
   bg:'#0D0F12',bg2:'#1a1a24',textColor:'#BFC3C9',accent:'#D4A84F',
 }
 
 const nmInp:React.CSSProperties = {
-  width:'100%', padding:'9px 12px',
-  background:C.g, boxShadow:insetSm,
-  border:'1px solid rgba(255,255,255,0.04)',
-  borderRadius:'10px', color:C.silver,
+  width:'100%', padding:'9px 12px', background:C.g, boxShadow:insetSm,
+  border:'1px solid rgba(255,255,255,0.04)', borderRadius:'10px', color:C.silver,
   fontFamily:"'DM Sans',sans-serif", fontSize:'13px', outline:'none',
 }
 const lbl:React.CSSProperties = {
   display:'block', fontSize:'10px', color:C.smoke,
   marginBottom:'5px', fontWeight:600, letterSpacing:'.05em', textTransform:'uppercase' as const,
 }
-const sec:React.CSSProperties = {
-  fontSize:'9px', fontWeight:700, letterSpacing:'.1em',
-  textTransform:'uppercase' as const, color:C.smoke,
-  marginBottom:'14px', display:'flex', alignItems:'center', gap:'8px',
-}
 
 export default function BuilderPage() {
   const router = useRouter()
   const photoRef = useRef<HTMLInputElement>(null)
   const logoRef  = useRef<HTMLInputElement>(null)
+  const cardRef  = useRef<HTMLDivElement>(null)
+
   const [form, setForm]             = useState<Form>(INIT_FORM)
   const [design, setDesign]         = useState<Design>(INIT_DESIGN)
   const [originalForm, setOriginal] = useState<Form|null>(null)
@@ -87,6 +182,14 @@ export default function BuilderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
   const [paidChanges, setPaidChanges] = useState<string[]>([])
+  const [activeCat, setActiveCat]   = useState('Premium')
+  const [activeTab, setActiveTab]   = useState<'front'|'back'|'design'>('front')
+
+  // Draggable positions for photo and logo
+  const [photoPos, setPhotoPos] = useState<Pos>({x:70, y:12})
+  const [logoPos, setLogoPos]   = useState<Pos>({x:12, y:70})
+  const [dragging, setDragging] = useState<'photo'|'logo'|null>(null)
+  const dragStart = useRef<{mx:number;my:number;ox:number;oy:number}|null>(null)
 
   useEffect(()=>{
     fetch('/api/cards').then(r=>r.json()).then(d=>{
@@ -106,6 +209,32 @@ export default function BuilderPage() {
       if(c.design) setDesign(c.design)
     }).catch(()=>{})
   },[])
+
+  // Drag handlers
+  const startDrag = useCallback((e:React.MouseEvent, type:'photo'|'logo')=>{
+    e.preventDefault(); e.stopPropagation()
+    const pos = type==='photo' ? photoPos : logoPos
+    dragStart.current = { mx:e.clientX, my:e.clientY, ox:pos.x, oy:pos.y }
+    setDragging(type)
+  },[photoPos, logoPos])
+
+  useEffect(()=>{
+    if(!dragging) return
+    const onMove = (e:MouseEvent) => {
+      if(!dragStart.current || !cardRef.current) return
+      const rect = cardRef.current.getBoundingClientRect()
+      const dx = ((e.clientX - dragStart.current.mx) / rect.width) * 100
+      const dy = ((e.clientY - dragStart.current.my) / rect.height) * 100
+      const nx = Math.max(0, Math.min(80, dragStart.current.ox + dx))
+      const ny = Math.max(0, Math.min(80, dragStart.current.oy + dy))
+      if(dragging==='photo') setPhotoPos({x:nx,y:ny})
+      else setLogoPos({x:nx,y:ny})
+    }
+    const onUp = () => { setDragging(null); dragStart.current=null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  },[dragging])
 
   const set  = (k:keyof Form,v:string)   => setForm(f=>({...f,[k]:v}))
   const setD = (k:keyof Design,v:string) => setDesign(d=>({...d,[k]:v}))
@@ -140,14 +269,8 @@ export default function BuilderPage() {
     setSubmitting(true)
     try{
       const res=await fetch('/api/cards',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          ...form,
-          services:form.services.split(',').map(s=>s.trim()).filter(Boolean),
-          design,
-          promoCode:promoValid?promoCode:undefined,
-        })
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({...form, services:form.services.split(',').map(s=>s.trim()).filter(Boolean), design, promoCode:promoValid?promoCode:undefined})
       })
       const data=await res.json()
       if(!res.ok) throw new Error(data.error||'Something went wrong')
@@ -157,71 +280,81 @@ export default function BuilderPage() {
     finally{setSubmitting(false)}
   }
 
-  const cardBg  = design.mode==='gradient'
+  const tpl = TEMPLATES.find(t=>t.id===design.template)||TEMPLATES[0]
+  const cardBg = design.mode==='gradient'
     ? `linear-gradient(135deg,${design.bg},${design.bg2})`
     : design.bg
   const fontCss = FONTS.find(f=>f.id===design.font)?.css||FONTS[0].css
   const initials = form.fullName.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()||'YN'
 
-  return (
-    <div style={{minHeight:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif"}}>
+  const tabBtn = (id:'front'|'back'|'design', label:string) => (
+    <button onClick={()=>setActiveTab(id)}
+      style={{flex:1, padding:'9px', borderRadius:'10px', border:'none',
+        background:activeTab===id?`rgba(212,168,79,0.1)`:C.g,
+        boxShadow:activeTab===id?insetSm:raisedSm,
+        color:activeTab===id?C.gold:C.smoke,
+        fontSize:'12px', fontWeight:activeTab===id?700:400,
+        cursor:'pointer', fontFamily:"'DM Sans',sans-serif", transition:'all .15s',
+        borderBottom:activeTab===id?`1px solid rgba(212,168,79,0.2)`:'1px solid transparent',
+      }}>
+      {label}
+    </button>
+  )
 
-      {/* ── NAV ── */}
-      <nav style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 24px',background:C.g,boxShadow:`0 4px 16px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0,zIndex:10}}>
-        <div style={{padding:'10px 16px',background:C.g,boxShadow:raised,borderRadius:'14px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
-          <img src="/logo.png" alt="Vynk" style={{width:'100%',height:'auto',display:'block',maxWidth:'90px'}}/>
+  return (
+    <div style={{height:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif",overflow:'hidden'}}>
+
+      {/* NAV */}
+      <nav style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 20px',background:C.g,boxShadow:`0 4px 16px ${C.nd}`,borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
+        <div style={{padding:'8px 14px',background:C.g,boxShadow:raised,borderRadius:'12px',border:'1px solid rgba(212,168,79,0.07)',display:'inline-flex',alignItems:'center'}}>
+          <img src="/logo.png" alt="Vynk" style={{width:'80px',height:'auto',display:'block'}}/>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-          {existingCard&&(
-            <Link href={`/c/${existingCard.slug}`} style={{fontSize:'12px',color:C.smoke,textDecoration:'none',padding:'8px 14px',background:C.g,boxShadow:raisedSm,borderRadius:'10px',border:'1px solid rgba(255,255,255,0.03)'}}>
-              View my card →
-            </Link>
-          )}
-          <div style={{fontSize:'12px',color:C.smoke,padding:'8px 14px',background:C.g,boxShadow:insetSm,borderRadius:'10px'}}>
-            Card Builder
-          </div>
+        <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+          <div style={{fontSize:'11px',color:C.smoke,padding:'6px 12px',background:C.g,boxShadow:insetSm,borderRadius:'8px'}}>Card Builder</div>
+          {existingCard&&<Link href={`/c/${existingCard.slug}`} style={{fontSize:'11px',color:C.gold,textDecoration:'none',padding:'6px 12px',background:C.g,boxShadow:raisedSm,borderRadius:'8px'}}>View card →</Link>}
         </div>
       </nav>
 
-      {/* ── WARNING MODAL ── */}
+      {/* WARNING */}
       {showWarning&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.85)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
-          <div style={{background:C.g,boxShadow:`14px 14px 36px ${C.nd}, -8px -8px 24px ${C.nl}`,borderRadius:'24px',padding:'36px',maxWidth:'420px',width:'100%',border:'1px solid rgba(212,168,79,0.08)'}}>
+        <div style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.88)',zIndex:50,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+          <div style={{background:C.g,boxShadow:`14px 14px 36px ${C.nd},-8px -8px 24px ${C.nl}`,borderRadius:'24px',padding:'36px',maxWidth:'420px',width:'100%',border:'1px solid rgba(212,168,79,0.08)'}}>
             <div style={{fontSize:'28px',marginBottom:'12px'}}>⚠️</div>
             <h2 style={{fontSize:'16px',fontWeight:700,marginBottom:'8px',color:C.silver,fontFamily:"'Syne',sans-serif"}}>Identity change detected</h2>
             <p style={{color:C.smoke,fontSize:'13px',marginBottom:'20px',lineHeight:1.7}}>
-              You changed: <span style={{color:C.gold,fontWeight:600}}>{paidChanges.map(k=>FIELD_LABELS[k]||k).join(', ')}</span>
-              <br/><br/>Your current card will be <strong style={{color:C.silver}}>permanently archived</strong> and a new one published. This costs <strong style={{color:C.gold}}>$10</strong>.
+              Changed: <span style={{color:C.gold,fontWeight:600}}>{paidChanges.map(k=>FIELD_LABELS[k]||k).join(', ')}</span><br/><br/>
+              Your current card will be <strong style={{color:C.silver}}>archived</strong> and a new one published for <strong style={{color:C.gold}}>$10</strong>.
             </p>
             <div style={{display:'flex',gap:'12px'}}>
-              <button onClick={()=>{setShowWarning(false);setPaidChanges([])}}
-                style={{flex:1,padding:'12px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'12px',color:C.smoke,fontSize:'13px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                Cancel
-              </button>
-              <button onClick={()=>{setShowWarning(false);submit(true)}}
-                style={{flex:1,padding:'12px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'12px',fontSize:'13px',fontWeight:700,border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif"}}>
-                Pay $10 & update
-              </button>
+              <button onClick={()=>{setShowWarning(false);setPaidChanges([])}} style={{flex:1,padding:'12px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'12px',color:C.smoke,fontSize:'13px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+              <button onClick={()=>{setShowWarning(false);submit(true)}} style={{flex:1,padding:'12px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'12px',fontSize:'13px',fontWeight:700,border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif"}}>Pay $10 & update</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── MAIN LAYOUT ── */}
+      {/* MAIN */}
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
 
-        {/* LEFT — Form */}
-        <aside style={{width:'340px',flexShrink:0,background:C.g,boxShadow:`4px 0 16px ${C.nd}`,borderRight:'1px solid rgba(255,255,255,0.03)',overflowY:'auto',display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:'20px'}}>
+        {/* LEFT PANEL */}
+        <aside style={{width:'320px',flexShrink:0,background:C.g,borderRight:'1px solid rgba(255,255,255,0.03)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
-            {/* FRONT */}
-            <div>
-              <div style={sec}>
-                <div style={{width:'20px',height:'1px',background:C.gold}}/>
-                Front — Identity
-                <span style={{color:C.gold,fontSize:'9px'}}>($10 to change)</span>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          {/* Tabs */}
+          <div style={{display:'flex',gap:'6px',padding:'12px 14px',borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
+            {tabBtn('front','Front')}
+            {tabBtn('back','Back')}
+            {tabBtn('design','Design')}
+          </div>
+
+          {/* Tab content */}
+          <div style={{flex:1,overflowY:'auto',padding:'16px 14px',display:'flex',flexDirection:'column',gap:'10px'}}>
+
+            {/* FRONT TAB */}
+            {activeTab==='front'&&(
+              <>
+                <div style={{fontSize:'9px',color:C.gold,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                  <div style={{width:'16px',height:'1px',background:C.gold}}/> Identity — $10 to change
+                </div>
                 <div><label style={lbl}>Full Name *</label><input style={nmInp} placeholder="Alexandra Reyes" value={form.fullName} onChange={e=>set('fullName',e.target.value)}/></div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
                   <div><label style={lbl}>Title</label><input style={nmInp} placeholder="CEO" value={form.title} onChange={e=>set('title',e.target.value)}/></div>
@@ -234,33 +367,31 @@ export default function BuilderPage() {
                 <div><label style={lbl}>Email</label><input style={nmInp} placeholder="you@email.com" value={form.email} onChange={e=>set('email',e.target.value)}/></div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
                   <div>
-                    <label style={lbl}>Photo</label>
+                    <label style={lbl}>Profile Photo <span style={{color:C.smoke,fontWeight:400}}>(drag on card)</span></label>
                     <button onClick={()=>photoRef.current?.click()} style={{width:'100%',padding:'9px',background:C.g,boxShadow:form.photoUrl?insetSm:raisedSm,border:`1px solid ${form.photoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.photoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                      {form.photoUrl?'✓ Photo':'Upload'}
+                      {form.photoUrl?'✓ Uploaded':'Upload photo'}
                     </button>
                     <input ref={photoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'photoUrl')}/>
                   </div>
                   <div>
-                    <label style={lbl}>Logo</label>
+                    <label style={lbl}>Logo <span style={{color:C.smoke,fontWeight:400}}>(drag on card)</span></label>
                     <button onClick={()=>logoRef.current?.click()} style={{width:'100%',padding:'9px',background:C.g,boxShadow:form.logoUrl?insetSm:raisedSm,border:`1px solid ${form.logoUrl?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,borderRadius:'10px',color:form.logoUrl?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-                      {form.logoUrl?'✓ Logo':'Upload'}
+                      {form.logoUrl?'✓ Uploaded':'Upload logo'}
                     </button>
                     <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
                   </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
 
-            {/* BACK */}
-            <div>
-              <div style={sec}>
-                <div style={{width:'20px',height:'1px',background:'#4ade80'}}/>
-                Back — Content
-                <span style={{color:'#4ade80',fontSize:'9px'}}>(free)</span>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+            {/* BACK TAB */}
+            {activeTab==='back'&&(
+              <>
+                <div style={{fontSize:'9px',color:'#4ade80',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                  <div style={{width:'16px',height:'1px',background:'#4ade80'}}/> Content — always free
+                </div>
                 <div><label style={lbl}>Tagline</label><input style={nmInp} placeholder="We craft brands that move people." value={form.tagline} onChange={e=>set('tagline',e.target.value)}/></div>
-                <div><label style={lbl}>Bio</label><textarea style={{...nmInp,height:'64px',resize:'none' as const,lineHeight:1.5}} value={form.bio} onChange={e=>set('bio',e.target.value)} placeholder="Brief description..."/></div>
+                <div><label style={lbl}>Bio</label><textarea style={{...nmInp,height:'72px',resize:'none' as const,lineHeight:1.5}} value={form.bio} onChange={e=>set('bio',e.target.value)} placeholder="Brief description..."/></div>
                 <div><label style={lbl}>Services (comma-separated)</label><input style={nmInp} placeholder="Branding, Strategy, UX" value={form.services} onChange={e=>set('services',e.target.value)}/></div>
                 <div><label style={lbl}>Website</label><input style={nmInp} placeholder="yoursite.com" value={form.website} onChange={e=>set('website',e.target.value)}/></div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
@@ -268,203 +399,206 @@ export default function BuilderPage() {
                     <div key={k}><label style={lbl}>{k.charAt(0).toUpperCase()+k.slice(1)}</label><input style={nmInp} placeholder="@handle" value={form[k]} onChange={e=>set(k,e.target.value)}/></div>
                   ))}
                 </div>
-              </div>
+              </>
+            )}
+
+            {/* DESIGN TAB */}
+            {activeTab==='design'&&(
+              <>
+                {/* Category filter */}
+                <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>
+                  {CATS.map(cat=>(
+                    <button key={cat} onClick={()=>setActiveCat(cat)}
+                      style={{padding:'4px 10px',borderRadius:'20px',border:'none',background:activeCat===cat?`rgba(212,168,79,0.12)`:'rgba(255,255,255,0.04)',color:activeCat===cat?C.gold:C.smoke,fontSize:'10px',fontWeight:activeCat===cat?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s'}}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Template grid */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'5px',marginBottom:'14px'}}>
+                  {TEMPLATES.filter(t=>t.cat===activeCat).map(t=>(
+                    <button key={t.id} title={t.label} onClick={()=>applyTemplate(t)}
+                      style={{height:'40px',borderRadius:'10px',cursor:'pointer',
+                        background:t.mode==='gradient'?`linear-gradient(135deg,${t.bg},${t.bg2})`:t.bg,
+                        border:`2px solid ${design.template===t.id?t.accent:'rgba(255,255,255,0.06)'}`,
+                        boxShadow:design.template===t.id?`0 0 0 1px ${t.accent}66, 3px 3px 8px ${C.nd}`:raisedSm,
+                        transition:'all .15s', position:'relative', overflow:'hidden',
+                      }}>
+                      <div style={{position:'absolute',inset:0,background:t.overlay==='none'?'none':t.overlay,opacity:.8}}/>
+                      <div style={{position:'absolute',bottom:'3px',right:'4px',width:'5px',height:'5px',borderRadius:'50%',background:t.accent}}/>
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'3px',marginBottom:'14px'}}>
+                  {TEMPLATES.filter(t=>t.cat===activeCat).map(t=>(
+                    <button key={t.id} onClick={()=>applyTemplate(t)}
+                      style={{padding:'3px 8px',borderRadius:'20px',border:'none',background:design.template===t.id?`rgba(212,168,79,0.1)`:'rgba(255,255,255,0.03)',color:design.template===t.id?C.gold:C.smoke,fontSize:'9px',fontWeight:design.template===t.id?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Font */}
+                <label style={lbl}>Font</label>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'5px',marginBottom:'12px'}}>
+                  {FONTS.map(f=>(
+                    <button key={f.id} onClick={()=>setD('font',f.id)}
+                      style={{fontFamily:f.css,padding:'7px 4px',borderRadius:'9px',background:C.g,boxShadow:design.font===f.id?insetSm:raisedSm,border:`1px solid ${design.font===f.id?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.font===f.id?C.gold:C.smoke,fontSize:'10px',fontWeight:600,cursor:'pointer',transition:'all .15s',outline:'none'}}>
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom colors */}
+                <label style={lbl}>Custom colors</label>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:'6px',marginBottom:'12px'}}>
+                  {[
+                    {k:'bg',l:'BG'},{k:'bg2',l:'BG2'},{k:'textColor',l:'Text'},{k:'accent',l:'Accent'}
+                  ].map(({k,l})=>(
+                    <div key={k}>
+                      <label style={{...lbl,fontSize:'9px'}}>{l}</label>
+                      <input type="color" value={(design as any)[k]||'#000000'} onChange={e=>setD(k as keyof Design,e.target.value)}
+                        style={{width:'100%',height:'30px',borderRadius:'7px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mode toggle */}
+                <label style={lbl}>Background</label>
+                <div style={{display:'flex',gap:'5px'}}>
+                  {['solid','gradient'].map(m=>(
+                    <button key={m} onClick={()=>setD('mode',m)}
+                      style={{flex:1,padding:'7px',borderRadius:'9px',background:C.g,boxShadow:design.mode===m?insetSm:raisedSm,border:`1px solid ${design.mode===m?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.mode===m?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',textTransform:'capitalize' as const,transition:'all .15s',outline:'none'}}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Promo + Submit */}
+          <div style={{padding:'14px',borderTop:'1px solid rgba(255,255,255,0.03)',flexShrink:0,display:'flex',flexDirection:'column',gap:'10px'}}>
+            <div style={{display:'flex',gap:'6px'}}>
+              <input style={{...nmInp,flex:1,padding:'8px 10px',fontSize:'12px'}} placeholder="Promo code" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
+              <button onClick={validatePromo} style={{padding:'8px 12px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',color:promoValid?C.gold:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>Apply</button>
             </div>
-
-            {/* DESIGN */}
-            <div>
-              <div style={sec}>
-                <div style={{width:'20px',height:'1px',background:'#a78bfa'}}/>
-                Design
-                <span style={{color:'#a78bfa',fontSize:'9px'}}>(always free)</span>
-              </div>
-
-              {/* Templates */}
-              <label style={lbl}>Templates</label>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'6px',marginBottom:'14px'}}>
-                {TEMPLATES.map(t=>(
-                  <button key={t.id} title={t.label} onClick={()=>applyTemplate(t)}
-                    style={{
-                      height:'36px', borderRadius:'10px', cursor:'pointer',
-                      background:t.mode==='gradient'?`linear-gradient(135deg,${t.bg},${t.bg2})`:t.bg,
-                      border:`2px solid ${design.template===t.id?C.gold:'rgba(255,255,255,0.06)'}`,
-                      boxShadow:design.template===t.id?`0 0 0 1px ${C.gold}, ${goldBox}`:raisedSm,
-                      transition:'all .15s', position:'relative', overflow:'hidden',
-                    }}>
-                    <div style={{position:'absolute',bottom:'3px',right:'4px',width:'6px',height:'6px',borderRadius:'50%',background:t.accent,opacity:.8}}/>
-                  </button>
-                ))}
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'14px'}}>
-                {TEMPLATES.map(t=>(
-                  <button key={t.id} onClick={()=>applyTemplate(t)}
-                    style={{padding:'4px 10px',borderRadius:'20px',border:'none',background:design.template===t.id?`rgba(212,168,79,0.12)`:'rgba(255,255,255,0.04)',color:design.template===t.id?C.gold:C.smoke,fontSize:'10px',fontWeight:design.template===t.id?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s'}}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Fonts */}
-              <label style={lbl}>Font</label>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'14px'}}>
-                {FONTS.map(f=>(
-                  <button key={f.id} onClick={()=>setD('font',f.id)}
-                    style={{fontFamily:f.css,padding:'8px 4px',borderRadius:'10px',background:C.g,boxShadow:design.font===f.id?insetSm:raisedSm,border:`1px solid ${design.font===f.id?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.font===f.id?C.gold:C.smoke,fontSize:'11px',fontWeight:600,cursor:'pointer',transition:'all .15s',outline:'none'}}>
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Mode */}
-              <label style={lbl}>Background mode</label>
-              <div style={{display:'flex',gap:'6px',marginBottom:'14px'}}>
-                {['solid','gradient'].map(m=>(
-                  <button key={m} onClick={()=>setD('mode',m)}
-                    style={{flex:1,padding:'8px',borderRadius:'10px',background:C.g,boxShadow:design.mode===m?insetSm:raisedSm,border:`1px solid ${design.mode===m?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.mode===m?C.gold:C.smoke,fontSize:'12px',fontWeight:600,cursor:'pointer',textTransform:'capitalize' as const,transition:'all .15s',outline:'none'}}>
-                    {m}
-                  </button>
-                ))}
-              </div>
-
-              {/* Colors */}
-              <label style={lbl}>Custom colors</label>
-              <div style={{display:'grid',gridTemplateColumns:design.mode==='gradient'?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:'8px',marginBottom:'8px'}}>
-                <div><label style={{...lbl,fontSize:'9px'}}>BG</label><input type="color" value={design.bg} onChange={e=>setD('bg',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
-                {design.mode==='gradient'&&<div><label style={{...lbl,fontSize:'9px'}}>BG2</label><input type="color" value={design.bg2} onChange={e=>setD('bg2',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>}
-                <div><label style={{...lbl,fontSize:'9px'}}>Text</label><input type="color" value={design.textColor} onChange={e=>setD('textColor',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
-                <div><label style={{...lbl,fontSize:'9px'}}>Accent</label><input type="color" value={design.accent||C.gold} onChange={e=>setD('accent',e.target.value)} style={{width:'100%',height:'32px',borderRadius:'8px',border:'none',background:C.g,boxShadow:raisedSm,cursor:'pointer',padding:'2px'}}/></div>
-              </div>
-            </div>
-
-            {/* PROMO */}
-            <div>
-              <label style={lbl}>Promo code</label>
-              <div style={{display:'flex',gap:'8px'}}>
-                <input style={{...nmInp,flex:1}} placeholder="VYNK50" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
-                <button onClick={validatePromo} style={{padding:'9px 14px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',color:C.smoke,fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap'}}>Apply</button>
-              </div>
-              {promoValid===true&&<p style={{fontSize:'11px',color:'#4ade80',marginTop:'5px'}}>✓ Promo applied!</p>}
-              {promoValid===false&&<p style={{fontSize:'11px',color:'#ef4444',marginTop:'5px'}}>Invalid or expired code</p>}
-            </div>
-
-            {/* SUBMIT */}
-            <div>
-              <button onClick={()=>submit()} disabled={submitting}
-                style={{width:'100%',padding:'15px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'14px',fontWeight:700,fontSize:'15px',border:'none',cursor:'pointer',boxShadow:goldBox,opacity:submitting?.6:1,fontFamily:"'DM Sans',sans-serif",transition:'all .15s',marginBottom:'8px'}}>
-                {submitting?'Processing…':existingCard?'Update my card':'✨ Generate my card — $20'}
-              </button>
-              <p style={{fontSize:'11px',color:C.smoke,textAlign:'center' as const,opacity:.7}}>
-                {existingCard?'Free changes save instantly · Identity changes cost $10':'One-time $20 · Colors & content free forever'}
-              </p>
-            </div>
-
+            <button onClick={()=>submit()} disabled={submitting}
+              style={{width:'100%',padding:'14px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'12px',fontWeight:700,fontSize:'14px',border:'none',cursor:'pointer',boxShadow:goldBox,opacity:submitting?.6:1,fontFamily:"'DM Sans',sans-serif"}}>
+              {submitting?'Processing…':existingCard?'Update card':'✨ Generate my card — $20'}
+            </button>
+            <p style={{fontSize:'10px',color:C.smoke,textAlign:'center' as const,opacity:.6}}>
+              {existingCard?'Free changes instant · Identity $10':'One-time · Colors & content free'}
+            </p>
           </div>
         </aside>
 
         {/* RIGHT — Preview */}
-        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:`radial-gradient(ellipse 60% 60% at 50% 50%, rgba(212,168,79,0.04) 0%, transparent 70%)`,padding:'40px',gap:'20px',overflowY:'auto'}}>
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:C.g,padding:'32px',gap:'16px',overflow:'auto',position:'relative'}}>
 
-          <p style={{fontSize:'10px',color:C.smoke,textTransform:'uppercase' as const,letterSpacing:'.1em'}}>
-            Live Preview — click to flip
+          {/* Background ambient glow */}
+          <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 70% 60% at 50% 50%, ${tpl.glow} 0%, transparent 70%)`,pointerEvents:'none'}}/>
+
+          <p style={{fontSize:'9px',color:C.smoke,textTransform:'uppercase' as const,letterSpacing:'.1em',position:'relative'}}>
+            Live Preview · Click card to flip · Drag photo/logo to reposition
           </p>
 
-          {/* Card container — neumorphic tray */}
-          <div style={{
-            background:C.g,
-            boxShadow:`12px 12px 32px ${C.nd}, -8px -8px 22px ${C.nl}`,
-            borderRadius:'28px',
-            padding:'24px',
-            border:'1px solid rgba(255,255,255,0.04)',
-            width:'100%',
-            maxWidth:'520px',
-          }}>
-            {/* Card flip */}
+          {/* Card tray */}
+          <div style={{background:C.g,boxShadow:`14px 14px 36px ${C.nd}, -8px -8px 24px ${C.nl}`,borderRadius:'28px',padding:'20px',border:`1px solid ${tpl.border}`,width:'100%',maxWidth:'560px',position:'relative'}}>
             <div style={{perspective:'1200px'}}>
-              <div
-                onClick={()=>setIsFlipped(f=>!f)}
-                style={{
-                  position:'relative', transformStyle:'preserve-3d',
-                  transition:'transform 0.7s cubic-bezier(0.23,1,0.32,1)',
-                  transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',
-                  cursor:'pointer', minHeight:'280px',
-                  borderRadius:'20px', overflow:'visible',
-                }}>
+              <div ref={cardRef} onClick={()=>!dragging&&setIsFlipped(f=>!f)}
+                style={{position:'relative',transformStyle:'preserve-3d',transition:dragging?'none':'transform 0.7s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',minHeight:'300px',borderRadius:'20px',userSelect:'none'}}>
 
-                {/* FRONT */}
-                <div style={{
-                  backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
-                  background:cardBg, borderRadius:'20px', padding:'32px',
-                  color:design.textColor, minHeight:'280px',
-                  display:'flex', flexDirection:'column', justifyContent:'space-between',
-                  fontFamily:fontCss,
-                  boxShadow:`0 20px 60px ${C.nd}`,
-                }}>
-                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'16px'}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.14em',opacity:.3,textTransform:'uppercase' as const,marginBottom:'16px',color:design.accent}}>VYNK</div>
-                      <div style={{fontSize:'26px',fontWeight:700,lineHeight:1.2,marginBottom:'6px'}}>{form.fullName||'Your Name'}</div>
-                      <div style={{fontSize:'13px',opacity:.7,marginBottom:'4px'}}>{[form.title,form.company].filter(Boolean).join(' · ')||'Title · Company'}</div>
-                      {form.tagline&&<div style={{fontSize:'11px',opacity:.55,marginTop:'10px',lineHeight:1.6,maxWidth:'260px'}}>{form.tagline}</div>}
-                    </div>
-                    <div style={{width:'64px',height:'64px',borderRadius:'50%',overflow:'hidden',border:`2px solid ${design.accent}40`,background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px',fontWeight:700,flexShrink:0}}>
-                      {form.photoUrl?<img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:initials}
-                    </div>
-                  </div>
-                  <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginTop:'24px'}}>
-                    <div>
-                      {form.email&&<div style={{fontSize:'11px',opacity:.6,marginBottom:'2px'}}>{form.email}</div>}
-                      {form.website&&<div style={{fontSize:'11px',opacity:.4}}>{form.website.replace(/^https?:\/\//,'')}</div>}
-                    </div>
-                    {form.logoUrl&&<img src={form.logoUrl} alt="logo" style={{height:'28px',objectFit:'contain',opacity:.85}}/>}
-                  </div>
-                  {/* Accent line */}
-                  <div style={{position:'absolute',bottom:0,left:'32px',right:'32px',height:'2px',background:`linear-gradient(90deg,transparent,${design.accent},transparent)`,opacity:.4,borderRadius:'2px'}}/>
-                </div>
+                {/* ── FRONT ── */}
+                <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',background:cardBg,borderRadius:'20px',padding:'32px',color:design.textColor,minHeight:'300px',display:'flex',flexDirection:'column',justifyContent:'space-between',fontFamily:fontCss,boxShadow:`0 24px 64px ${C.nd}`,position:'relative',overflow:'hidden'}}>
 
-                {/* BACK */}
-                <div style={{
-                  backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
-                  transform:'rotateY(180deg)',
-                  position:'absolute', top:0, left:0, right:0, bottom:0,
-                  background:cardBg, borderRadius:'20px', padding:'32px',
-                  color:design.textColor, minHeight:'280px',
-                  display:'flex', flexDirection:'column', gap:'14px',
-                  filter:'brightness(0.85)', fontFamily:fontCss,
-                }}>
-                  <div style={{fontSize:'9px',opacity:.3,fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase' as const,color:design.accent}}>VYNK · SERVICES</div>
-                  {form.services&&(
-                    <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
-                      {form.services.split(',').filter(Boolean).map(s=>(
-                        <span key={s} style={{padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:600,background:`${design.accent}20`,border:`1px solid ${design.accent}40`,color:design.accent}}>{s.trim()}</span>
-                      ))}
+                  {/* Overlay texture */}
+                  {tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
+
+                  {/* Accent border */}
+                  <div style={{position:'absolute',inset:0,borderRadius:'20px',border:`1px solid ${tpl.border}`,pointerEvents:'none'}}/>
+
+                  {/* Draggable photo */}
+                  {form.photoUrl&&(
+                    <div
+                      onMouseDown={e=>startDrag(e,'photo')}
+                      style={{position:'absolute',left:`${photoPos.x}%`,top:`${photoPos.y}%`,width:'64px',height:'64px',borderRadius:'50%',overflow:'hidden',border:`2px solid ${design.accent}60`,cursor:'grab',zIndex:10,boxShadow:`0 4px 16px rgba(0,0,0,0.4)`,transform:dragging==='photo'?'scale(1.05)':'scale(1)',transition:dragging==='photo'?'none':'transform .15s'}}>
+                      <img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} draggable={false}/>
                     </div>
                   )}
-                  {form.bio&&<div style={{fontSize:'12px',opacity:.65,lineHeight:1.7}}>{form.bio}</div>}
-                  <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'auto'}}>
-                    {(['whatsapp','instagram','linkedin','twitter','tiktok','telegram'] as const).filter(k=>form[k]).map(k=>(
-                      <span key={k} style={{width:'30px',height:'30px',borderRadius:'8px',background:`${design.accent}15`,border:`1px solid ${design.accent}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:700,color:design.accent}}>
-                        {k.slice(0,2).toUpperCase()}
-                      </span>
-                    ))}
+
+                  {/* Draggable logo */}
+                  {form.logoUrl&&(
+                    <div
+                      onMouseDown={e=>startDrag(e,'logo')}
+                      style={{position:'absolute',left:`${logoPos.x}%`,top:`${logoPos.y}%`,cursor:'grab',zIndex:10,transform:dragging==='logo'?'scale(1.05)':'scale(1)',transition:dragging==='logo'?'none':'transform .15s'}}>
+                      <img src={form.logoUrl} alt="logo" style={{height:'32px',objectFit:'contain',filter:`drop-shadow(0 2px 8px rgba(0,0,0,0.5))`}} draggable={false}/>
+                    </div>
+                  )}
+
+                  {/* Card content */}
+                  <div style={{position:'relative',zIndex:1}}>
+                    <div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.14em',opacity:.3,textTransform:'uppercase' as const,marginBottom:'20px',color:design.accent}}>VYNK</div>
+                    <div style={{fontSize:'28px',fontWeight:700,lineHeight:1.15,marginBottom:'6px'}}>{form.fullName||'Your Name'}</div>
+                    <div style={{fontSize:'13px',opacity:.7,marginBottom:'6px'}}>{[form.title,form.company].filter(Boolean).join(' · ')||'Title · Company'}</div>
+                    {form.tagline&&<div style={{fontSize:'11px',opacity:.5,lineHeight:1.6,maxWidth:'55%'}}>{form.tagline}</div>}
+                  </div>
+
+                  {/* Avatar placeholder if no photo */}
+                  {!form.photoUrl&&(
+                    <div style={{position:'absolute',top:'28px',right:'28px',width:'60px',height:'60px',borderRadius:'50%',background:`${design.accent}18`,border:`2px solid ${design.accent}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',fontWeight:700,color:design.accent}}>
+                      {initials}
+                    </div>
+                  )}
+
+                  <div style={{position:'relative',zIndex:1}}>
+                    {form.email&&<div style={{fontSize:'11px',opacity:.55,marginBottom:'2px'}}>{form.email}</div>}
+                    {form.website&&<div style={{fontSize:'11px',opacity:.35}}>{form.website.replace(/^https?:\/\//,'')}</div>}
+                    <div style={{marginTop:'16px',width:'100%',height:'1px',background:`linear-gradient(90deg,${design.accent}50,transparent)`}}/>
+                  </div>
+                </div>
+
+                {/* ── BACK ── */}
+                <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',position:'absolute',top:0,left:0,right:0,bottom:0,background:cardBg,borderRadius:'20px',padding:'32px',color:design.textColor,minHeight:'300px',display:'flex',flexDirection:'column',gap:'14px',fontFamily:fontCss,filter:'brightness(0.85)',overflow:'hidden'}}>
+                  {tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
+                  <div style={{position:'absolute',inset:0,borderRadius:'20px',border:`1px solid ${tpl.border}`,pointerEvents:'none'}}/>
+                  <div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:'12px',height:'100%'}}>
+                    <div style={{fontSize:'9px',opacity:.3,fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase' as const,color:design.accent}}>VYNK · SERVICES</div>
+                    {form.services&&(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                        {form.services.split(',').filter(Boolean).map(s=>(
+                          <span key={s} style={{padding:'4px 12px',borderRadius:'20px',fontSize:'10px',fontWeight:600,background:`${design.accent}18`,border:`1px solid ${design.accent}35`,color:design.accent}}>{s.trim()}</span>
+                        ))}
+                      </div>
+                    )}
+                    {form.bio&&<div style={{fontSize:'12px',opacity:.65,lineHeight:1.7}}>{form.bio}</div>}
+                    <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'auto'}}>
+                      {(['whatsapp','instagram','linkedin','twitter','tiktok','telegram'] as const).filter(k=>form[k]).map(k=>(
+                        <span key={k} style={{width:'32px',height:'32px',borderRadius:'9px',background:`${design.accent}15`,border:`1px solid ${design.accent}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:700,color:design.accent}}>
+                          {k.slice(0,2).toUpperCase()}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Flip hint */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'16px'}}>
-              <div style={{width:'32px',height:'1px',background:`rgba(212,168,79,0.2)`}}/>
-              <span style={{fontSize:'10px',color:C.smoke,letterSpacing:'.06em'}}>click to flip</span>
-              <div style={{width:'32px',height:'1px',background:`rgba(212,168,79,0.2)`}}/>
+            {/* Info bar */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:'12px',padding:'0 4px'}}>
+              <span style={{fontSize:'10px',color:C.smoke}}>
+                <span style={{color:C.gold,fontWeight:700}}>{tpl.label}</span> · {FONTS.find(f=>f.id===design.font)?.name}
+              </span>
+              <span style={{fontSize:'10px',color:C.smoke}}>Click to flip ↻</span>
             </div>
           </div>
 
-          {/* Template label */}
-          <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'8px 16px',fontSize:'11px',color:C.smoke}}>
-            Template: <span style={{color:C.gold,fontWeight:600}}>{TEMPLATES.find(t=>t.id===design.template)?.label||'Custom'}</span>
-            {existingCard&&<> · Active at <span style={{color:C.gold}}>/c/{existingCard.slug}</span></>}
-          </div>
-
+          {existingCard&&(
+            <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'8px 16px',fontSize:'11px',color:C.smoke,position:'relative'}}>
+              Active: <span style={{color:C.gold}}>/c/{existingCard.slug}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
