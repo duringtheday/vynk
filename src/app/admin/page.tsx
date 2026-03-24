@@ -539,7 +539,7 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
             exp(p)?new Date(exp(p)).toLocaleDateString():<span key={`exp-${i}`} style={{color:C.smoke,opacity:.5}}>No expiry</span>,
             <Bdg key={`bdg-${i}`} t={isActive(p)?'Active':'Off'} type={isActive(p)?'green':'gray'}/>,
             <div key={`act-${i}`} style={{display:'flex',gap:'4px'}}>
-              <button onClick={()=>startEdit(p)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
+              <button onClick={()=>startEdit(p)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow: editing?.id===p.id ? insetSm : raisedSm,border: editing?.id===p.id ? '1px solid rgba(212,168,79,0.2)' : '1px solid rgba(255,255,255,0.04)',color: editing?.id===p.id ? C.gold : C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
               <button onClick={()=>toggleActive(p.id,isActive(p))} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${isActive(p)?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:isActive(p)?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{isActive(p)?'Disable':'Enable'}</button>
               <button onClick={()=>del(p.id,p.code)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',color:'#ef4444',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
             </div>,
