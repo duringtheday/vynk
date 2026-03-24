@@ -89,24 +89,18 @@ export default function AdminDashboard() {
   const [loading,setLoading]     = useState(true)
   const [timer,setTimer]         = useState(15*60)
   const [collapsed,setCollapsed] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const router = useRouter()
 
   useEffect(()=>{
-    const check = () => {
-      const mobile = window.innerWidth < 768
-      setIsMobile(mobile)
-      if(mobile) setCollapsed(true)
-    }
-    check()
-    window.addEventListener("resize", check)
-    return () => window.removeEventListener("resize", check)
+    const check=()=>{ if(window.innerWidth<768) setCollapsed(true) }
+    check(); window.addEventListener('resize',check)
+    return()=>window.removeEventListener('resize',check)
   },[])
-  const router = useRouter()
 
   const load = useCallback(async(s:Section)=>{
     setLoading(true); setData(null)
     try {
-      const res = await fetch(`/api/admin/dashboard?section=${s}`)
+      const res=await fetch(`/api/admin/dashboard?section=${s}`)
       if(res.status===401){router.push('/admin/login');return}
       setData(await res.json())
     } catch { toast.error('Failed to load') }
@@ -131,38 +125,14 @@ export default function AdminDashboard() {
 
   return (
     <div style={{display:'flex',minHeight:'100dvh',background:C.g,fontFamily:"'DM Sans',sans-serif",color:C.silver}}>
-
-      {/* ─── SIDEBAR ─── */}
-      <aside style={{
-        width:collapsed?'72px':'224px',
-        flexShrink:0,
-        background:C.g,
-        boxShadow:`6px 0 24px ${C.nd}`,
-        display:'flex',
-        flexDirection:'column',
-        borderRight:'1px solid rgba(255,255,255,0.025)',
-        transition:'width .25s ease',
-        overflow:'hidden',
-      }}>
-
-        {/* Logo */}
+      <aside style={{width:collapsed?'72px':'224px',flexShrink:0,background:C.g,boxShadow:`6px 0 24px ${C.nd}`,display:'flex',flexDirection:'column',borderRight:'1px solid rgba(255,255,255,0.025)',transition:'width .25s ease',overflow:'hidden'}}>
         <div style={{padding:'16px 12px',borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
-          <div onClick={()=>setCollapsed(c=>!c)} style={{
-            padding:collapsed?'10px':'14px 16px',
-            background:C.g,
-            boxShadow:raised,
-            borderRadius:'14px',
-            border:'1px solid rgba(212,168,79,0.08)',
-            display:'flex',alignItems:'center',justifyContent:'center',
-            cursor:'pointer',transition:'all .2s',
-          }}>
+          <div onClick={()=>setCollapsed(c=>!c)} style={{padding:collapsed?'10px':'14px 16px',background:C.g,boxShadow:raised,borderRadius:'14px',border:'1px solid rgba(212,168,79,0.08)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .2s'}}>
             <img src="/logo.png" alt="Vynk" style={{width:'100%',height:'auto',maxWidth:collapsed?'26px':'76px',display:'block',transition:'max-width .2s'}}/>
           </div>
           {!collapsed&&<div style={{fontSize:'9px',color:C.smoke,marginTop:'8px',textAlign:'center',letterSpacing:'.1em',textTransform:'uppercase',fontWeight:700,opacity:.4}}>Owner Dashboard</div>}
         </div>
-
-        {/* Nav items */}
-        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'10px 10px'}}>
+        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'10px'}}>
           {groups.map(g=>(
             <div key={g} style={{marginBottom:'4px'}}>
               {!collapsed&&<div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(111,115,122,0.35)',padding:'10px 4px 6px'}}>{g}</div>}
@@ -170,30 +140,8 @@ export default function AdminDashboard() {
                 {NAV.filter(n=>n.g===g).map(n=>{
                   const on=active===n.s
                   return (
-                    <button key={n.s} onClick={()=>{setActive(n.s);window.history.replaceState(null,'',`/admin?s=${n.s}`)}} style={{
-                      display:'flex',alignItems:'center',gap:'10px',
-                      width:'100%',
-                      padding:collapsed?'11px 0':'10px 10px',
-                      justifyContent:collapsed?'center':'flex-start',
-                      borderRadius:'12px',
-                      background: C.g,
-                      boxShadow: on ? insetSm : raisedSm,
-                      border: on ? `1px solid rgba(212,168,79,0.1)` : '1px solid rgba(255,255,255,0.02)',
-                      color: on ? C.gold : C.smoke,
-                      fontSize:'12px',fontWeight:on?600:400,
-                      cursor:'pointer',transition:'all .18s',
-                      textAlign:'left',fontFamily:"'DM Sans',sans-serif",outline:'none',
-                    }}>
-                      <span style={{
-                        width:'30px',height:'30px',
-                        borderRadius:'9px',
-                        flexShrink:0,
-                        display:'flex',alignItems:'center',justifyContent:'center',
-                        fontSize:'14px',
-                        background: on ? `rgba(212,168,79,0.1)` : 'transparent',
-                        boxShadow: on ? insetSm : 'none',
-                        transition:'all .18s',
-                      }}>{n.icon}</span>
+                    <button key={n.s} onClick={()=>{setActive(n.s);window.history.replaceState(null,'',`/admin?s=${n.s}`)}} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',padding:collapsed?'11px 0':'10px 10px',justifyContent:collapsed?'center':'flex-start',borderRadius:'12px',background:C.g,boxShadow:on?insetSm:raisedSm,border:on?`1px solid rgba(212,168,79,0.1)`:'1px solid rgba(255,255,255,0.02)',color:on?C.gold:C.smoke,fontSize:'12px',fontWeight:on?600:400,cursor:'pointer',transition:'all .18s',textAlign:'left',fontFamily:"'DM Sans',sans-serif",outline:'none'}}>
+                      <span style={{width:'30px',height:'30px',borderRadius:'9px',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',background:on?`rgba(212,168,79,0.1)`:'transparent',boxShadow:on?insetSm:'none',transition:'all .18s'}}>{n.icon}</span>
                       {!collapsed&&<span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{n.l}</span>}
                     </button>
                   )
@@ -202,49 +150,21 @@ export default function AdminDashboard() {
             </div>
           ))}
         </div>
-
-        {/* Session timer + lock */}
         <div style={{padding:'12px',borderTop:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
           {!collapsed&&(
-            <div style={{
-              background:C.g,boxShadow:insetSm,
-              borderRadius:'10px',padding:'9px 12px',
-              marginBottom:'10px',
-              display:'flex',alignItems:'center',justifyContent:'space-between',
-            }}>
+            <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'9px 12px',marginBottom:'10px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <span style={{fontSize:'10px',color:C.smoke}}>Session</span>
-              <span style={{
-                color:timer<120?'#ef4444':timer<300?C.gold:C.silver,
-                fontWeight:700,fontFamily:'monospace',fontSize:'13px',
-              }}>{mm}:{ss}</span>
+              <span style={{color:timer<120?'#ef4444':timer<300?C.gold:C.silver,fontWeight:700,fontFamily:'monospace',fontSize:'13px'}}>{mm}:{ss}</span>
             </div>
           )}
-          <button onClick={lock} style={{
-            width:'100%',padding:'9px',borderRadius:'10px',
-            background:C.g,boxShadow:raisedSm,
-            border:'1px solid rgba(239,68,68,0.15)',
-            color:'#ef4444',fontSize:'11px',fontWeight:600,
-            cursor:'pointer',fontFamily:"'DM Sans',sans-serif",
-            display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',
-            outline:'none',transition:'all .15s',
-          }}>
+          <button onClick={lock} style={{width:'100%',padding:'9px',borderRadius:'10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.15)',color:'#ef4444',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',outline:'none',transition:'all .15s'}}>
             🔒{!collapsed&&' Lock'}
           </button>
         </div>
       </aside>
 
-      {/* ─── MAIN ─── */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
-
-        {/* Topbar */}
-        <div style={{
-          display:'flex',alignItems:'center',justifyContent:'space-between',
-          padding:'0 24px',height:'56px',
-          background:C.g,
-          borderBottom:'1px solid rgba(255,255,255,0.025)',
-          boxShadow:`0 4px 16px ${C.nd}`,
-          flexShrink:0,
-        }}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 24px',height:'56px',background:C.g,borderBottom:'1px solid rgba(255,255,255,0.025)',boxShadow:`0 4px 16px ${C.nd}`,flexShrink:0}}>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:'15px',color:C.silver,display:'flex',alignItems:'center',gap:'8px'}}>
             <span>{NAV.find(n=>n.s===active)?.icon}</span>
             {NAV.find(n=>n.s===active)?.l}
@@ -259,15 +179,13 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-
-        {/* Content */}
         <div style={{flex:1,overflowY:'auto',padding:'24px'}}>
-          {loading ? (
+          {loading?(
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'300px',flexDirection:'column',gap:'14px'}}>
               <div style={{width:'44px',height:'44px',background:C.g,boxShadow:raised,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px'}}>⏳</div>
               <div style={{color:C.smoke,fontSize:'13px'}}>Loading…</div>
             </div>
-          ) : (
+          ):(
             <Content section={active} data={data} reload={()=>load(active)} fmt={fmt} fmtDt={fmtDt}/>
           )}
         </div>
@@ -425,7 +343,7 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
         <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
           {(data.logs||[]).map((l:any)=>(
             <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:'10px',padding:'10px 12px',borderRadius:'10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.025)'}}>
-              <div style={{width:'8px',height:'8px',borderRadius:'50%',marginTop:'3px',flexShrink:0,background:l.event?.includes('success')?'#4ade80':l.event?.includes('failed')?'#ef4444':C.gold,boxShadow:`0 0 6px currentColor`}}/>
+              <div style={{width:'8px',height:'8px',borderRadius:'50%',marginTop:'3px',flexShrink:0,background:l.event?.includes('success')?'#4ade80':l.event?.includes('failed')?'#ef4444':C.gold}}/>
               <div style={{flex:1}}>
                 <div style={{fontSize:'12px',fontWeight:500,color:C.silver,textTransform:'capitalize'}}>{l.event?.replace(/_/g,' ')}</div>
                 <div style={{fontSize:'11px',color:C.smoke,marginTop:'2px'}}>{l.ip||'—'} · {fmtDt(l.created_at)}</div>
@@ -441,12 +359,12 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     <div style={{maxWidth:'500px'}}>
       <Panel title="Owner privileges">
         {[
-          {l:'Edit card anytime',      v:'Free always',t:'green' as const},
-          {l:'Unlimited updates',      v:'Unlimited',  t:'green' as const},
-          {l:'No payment dialogs',     v:'Bypassed',   t:'green' as const},
-          {l:'Create promo codes',     v:'Full access',t:'amber' as const},
-          {l:'Admin dashboard',        v:'Full access',t:'amber' as const},
-          {l:'All analytics',          v:'Full access',t:'amber' as const},
+          {l:'Edit card anytime',      v:'Free always', t:'green' as const},
+          {l:'Unlimited updates',      v:'Unlimited',   t:'green' as const},
+          {l:'No payment dialogs',     v:'Bypassed',    t:'green' as const},
+          {l:'Create promo codes',     v:'Full access', t:'amber' as const},
+          {l:'Admin dashboard',        v:'Full access', t:'amber' as const},
+          {l:'All analytics',          v:'Full access', t:'amber' as const},
         ].map(r=>(
           <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
             <span style={{fontSize:'13px',color:C.silver}}>{r.l}</span>
@@ -466,10 +384,10 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
     <div style={{maxWidth:'500px'}}>
       <Panel title="Pricing rules">
         {[
-          {l:'New card creation', v:'$20.00',note:'One-time'},
-          {l:'Identity renewal',  v:'$10.00',note:'Archives previous'},
-          {l:'Content updates',   v:'Free',  note:'Colors, bio, socials'},
-          {l:'Owner edits',       v:'Free',  note:'All fields, always'},
+          {l:'New card creation', v:'$20.00', note:'One-time'},
+          {l:'Identity renewal',  v:'$10.00', note:'Archives previous'},
+          {l:'Content updates',   v:'Free',   note:'Colors, bio, socials'},
+          {l:'Owner edits',       v:'Free',   note:'All fields, always'},
         ].map(r=>(
           <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
             <div>
@@ -518,16 +436,19 @@ function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reloa
 function PromoSection({data,reload}:{data:any;reload:()=>void}) {
   const inpSt:React.CSSProperties={padding:'9px 12px',border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',background:C.g,color:C.silver,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",outline:'none',boxShadow:insetSm,width:'100%'}
   const EMPTY = {code:'',discountType:'percent',discountValue:20,appliesTo:'both',maxUses:'',expiresAt:''}
-  const [form,setForm]=useState(EMPTY)
-  const [editing,setEditing]=useState<any>(null)
-  const [loading,setLoading]=useState(false)
+  const [form,setForm]     = useState(EMPTY)
+  const [editing,setEditing] = useState<any>(null)
+  const [loading,setLoading] = useState(false)
 
   function startEdit(p:any){
     setEditing(p)
     setForm({
-      code:p.code, discountType:p.discount_type, discountValue:p.discount_value,
-      appliesTo:(p.appliesTo??p.applies_to), maxUses:p.max_uses||'',
-      expiresAt:p.expires_at?new Date(p.expires_at).toISOString().slice(0,10):'',
+      code:          p.code,
+      discountType:  p.discountType  ?? p.discount_type  ?? 'percent',
+      discountValue: p.discountValue ?? p.discount_value ?? 0,
+      appliesTo:     p.appliesTo     ?? p.applies_to     ?? 'both',
+      maxUses:       String(p.maxUses ?? p.max_uses ?? ''),
+      expiresAt:     (p.expiresAt??p.expires_at) ? new Date(p.expiresAt??p.expires_at).toISOString().slice(0,10) : '',
     })
   }
   function cancelEdit(){ setEditing(null); setForm(EMPTY) }
@@ -535,12 +456,7 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
   async function save(){
     if(!form.code){toast.error('Enter a code');return}
     setLoading(true)
-    const body = {
-      ...form,
-      discountValue: Number(form.discountValue),
-      maxUses: form.maxUses?Number(form.maxUses):null,
-      expiresAt: form.expiresAt||null,
-    }
+    const body={...form, discountValue:Number(form.discountValue), maxUses:form.maxUses?Number(form.maxUses):null, expiresAt:form.expiresAt||null}
     if(editing){
       const r=await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,id:editing.id,action:'update'})})
       r.ok?toast.success('Updated!'):toast.error('Error updating')
@@ -558,61 +474,73 @@ function PromoSection({data,reload}:{data:any;reload:()=>void}) {
   }
 
   async function del(id:string,code:string){
-    if(!confirm(`Delete promo code "${code}"?`)) return
+    if(!confirm(`Delete "${code}"?`)) return
     await fetch('/api/admin/dashboard',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})})
     toast.success('Deleted'); reload()
   }
 
+  const isActive=(p:any)=>p.isActive??p.is_active
+  const val=(p:any)=>p.discountValue??p.discount_value
+  const typ=(p:any)=>p.discountType??p.discount_type
+  const uses=(p:any)=>p.usesCount??p.uses_count
+  const maxU=(p:any)=>p.maxUses??p.max_uses
+  const appTo=(p:any)=>p.appliesTo??p.applies_to
+  const exp=(p:any)=>p.expiresAt??p.expires_at
+
   return (
     <div>
-      <Panel title={editing?`Editing: ${editing.code}`:'Create promo code'}
-        action={editing&&<button onClick={cancelEdit} style={{padding:'5px 12px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'none',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>}>
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr auto',gap:'10px',alignItems:'end'}}>
-          <div>
-            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Code</label>
-            <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="VYNK50" style={inpSt} disabled={!!editing}/>
+      {/* Edit border wrapper */}
+      <div style={{borderRadius:'18px',border:editing?`1px solid rgba(212,168,79,0.3)`:'1px solid transparent',transition:'border .2s',marginBottom:'16px'}}>
+        <Panel title={editing?`Editing: ${editing.code}`:'Create promo code'}
+          action={editing&&<button onClick={cancelEdit} style={{padding:'5px 12px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'none',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>}>
+          <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr auto',gap:'10px',alignItems:'end'}}>
+            <div>
+              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Code</label>
+              <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="VYNK50" style={{...inpSt,opacity:editing?.5:1}} disabled={!!editing}/>
+            </div>
+            <div>
+              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Type</label>
+              <select value={form.discountType} onChange={e=>setForm(f=>({...f,discountType:e.target.value}))} style={inpSt}>
+                <option value="percent">% off</option>
+                <option value="fixed">$ off</option>
+                <option value="free">100% free</option>
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Value</label>
+              <input type="number" value={form.discountValue} onChange={e=>setForm(f=>({...f,discountValue:+e.target.value}))} style={inpSt}/>
+            </div>
+            <div>
+              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Max uses</label>
+              <input type="number" placeholder="∞" value={form.maxUses} onChange={e=>setForm(f=>({...f,maxUses:e.target.value}))} style={inpSt}/>
+            </div>
+            <div>
+              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Expires</label>
+              <input type="date" value={form.expiresAt} onChange={e=>setForm(f=>({...f,expiresAt:e.target.value}))} style={{...inpSt,colorScheme:'dark'}}/>
+            </div>
+            <button onClick={save} disabled={loading}
+              style={{padding:'9px 18px',borderRadius:'10px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'12px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",boxShadow:goldBox,whiteSpace:'nowrap',height:'38px'}}>
+              {loading?'…':editing?'Save':'+ Create'}
+            </button>
           </div>
-          <div>
-            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Type</label>
-            <select value={form.discountType} onChange={e=>setForm(f=>({...f,discountType:e.target.value}))} style={inpSt}>
-              <option value="percent">% off</option>
-              <option value="fixed">$ off</option>
-              <option value="free">100% free</option>
-            </select>
-          </div>
-          <div>
-            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Value</label>
-            <input type="number" value={form.discountValue} onChange={e=>setForm(f=>({...f,discountValue:+e.target.value}))} style={inpSt}/>
-          </div>
-          <div>
-            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Max uses</label>
-            <input type="number" placeholder="∞" value={form.maxUses} onChange={e=>setForm(f=>({...f,maxUses:e.target.value}))} style={inpSt}/>
-          </div>
-          <div>
-            <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Expires</label>
-            <input type="date" value={form.expiresAt} onChange={e=>setForm(f=>({...f,expiresAt:e.target.value}))} style={{...inpSt,colorScheme:'dark'}}/>
-          </div>
-          <button onClick={save} disabled={loading}
-            style={{padding:'9px 18px',borderRadius:'10px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'12px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",boxShadow:goldBox,whiteSpace:'nowrap',height:'38px'}}>
-            {loading?'…':editing?'Save':'+ Create'}
-          </button>
-        </div>
-        <p style={{fontSize:'11px',color:C.smoke,marginTop:'10px',opacity:.7}}>
-          Tip: <strong style={{color:C.gold}}>100% free</strong> — test users get the card without paying. Works for new cards AND renewals.
-        </p>
-      </Panel>
+          <p style={{fontSize:'11px',color:C.smoke,marginTop:'10px',opacity:.7}}>
+            Tip: <strong style={{color:C.gold}}>100% free</strong> — test users get the card without paying. Works for new cards AND renewals.
+          </p>
+        </Panel>
+      </div>
+
       <Panel title={`Promo codes (${data.promos?.length||0})`}>
         <Tbl heads={['Code','Discount','Uses','Applies To','Expires','Status','Actions']}
-          rows={(data.promos||[]).map((p:any)=>[
-            <span style={{fontFamily:'monospace',fontWeight:700,color:C.gold,fontSize:'13px'}}>{p.code}</span>,
-            `${p.discountValue??p.discount_value}${(p.discountType??p.discount_type)==='percent'?'%':(p.discountType??p.discount_type)==='free'?' free':'$'} off`,
-            `${p.usesCount??p.uses_count}${(p.maxUses??p.max_uses)?` / ${p.maxUses??p.max_uses}`:''}`,
-            (p.appliesTo??p.applies_to),
-            (p.expiresAt??p.expires_at)?new Date(p.expiresAt??p.expires_at).toLocaleDateString():<span style={{color:C.smoke,opacity:.5}}>No expiry</span>,
-            <Bdg t={(p.isActive??p.is_active)?'Active':'Off'} type={(p.isActive??p.is_active)?'green':'gray'}/>,
-            <div style={{display:'flex',gap:'4px'}}>
+          rows={(data.promos||[]).map((p:any,i:number)=>[
+            <span key={`code-${i}`} style={{fontFamily:'monospace',fontWeight:700,color:C.gold,fontSize:'13px'}}>{p.code}</span>,
+            `${val(p)}${typ(p)==='percent'?'%':typ(p)==='free'?' free':'$'} off`,
+            `${uses(p)}${maxU(p)?` / ${maxU(p)}`:''}`,
+            appTo(p)||'both',
+            exp(p)?new Date(exp(p)).toLocaleDateString():<span key={`exp-${i}`} style={{color:C.smoke,opacity:.5}}>No expiry</span>,
+            <Bdg key={`bdg-${i}`} t={isActive(p)?'Active':'Off'} type={isActive(p)?'green':'gray'}/>,
+            <div key={`act-${i}`} style={{display:'flex',gap:'4px'}}>
               <button onClick={()=>startEdit(p)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
-              <button onClick={()=>toggleActive(p.id,p.isActive??p.is_active)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${(p.isActive??p.is_active)?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:p.is_active?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{(p.isActive??p.is_active)?'Disable':'Enable'}</button>
+              <button onClick={()=>toggleActive(p.id,isActive(p))} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${isActive(p)?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:isActive(p)?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{isActive(p)?'Disable':'Enable'}</button>
               <button onClick={()=>del(p.id,p.code)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',color:'#ef4444',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
             </div>,
           ])}/>
