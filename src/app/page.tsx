@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import CardShowcase from '@/components/CardShowcase'
 
 const C = {
   graphite: '#0D0F12', gold: '#D4A84F', silver: '#BFC3C9',
@@ -53,7 +54,7 @@ function VynkLogo({ size = 'nav' }: { size?: 'nav' | 'page' }) {
       border: '1px solid rgba(212,168,79,0.07)',
     }}>
       <img src="/logo.png" alt="Vynk"
-        style={{ width: '100%', height: '100%', filter:'drop-shadow(0 2px 8px rgba(0,0,0,0.6))', display: 'block', borderRadius: isPage ? '20px' : '12px' }} />
+        style={{ width: '100%', height: '100%', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.6))', display: 'block', borderRadius: isPage ? '20px' : '12px' }} />
     </div>
   )
 }
@@ -124,6 +125,7 @@ export default function HomePage() {
               </button>
             </div>
             <p style={{ fontSize: '12px', color: C.smoke, opacity: .5 }}>One-time · No subscription · Free updates · Identity changes from $10</p>
+            <CardShowcase />
           </section>
         )}
 
