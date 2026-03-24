@@ -103,16 +103,15 @@ function PromoSlideshow() {
       minHeight: '40px',
     }}>
       <span style={{
-        fontSize: '14px',
         opacity: animating ? 0 : 1,
         transform: animating ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 0.28s ease, transform 0.28s ease',
         display: 'flex', alignItems: 'center', gap: '8px',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        color: C.smoke, fontSize: '12px', fontWeight: 400,
+        color: C.smoke, fontWeight: 400,  // ← sin fontSize aquí
       }}>
         <span style={{ color: C.gold, fontSize: '13px', flexShrink: 0 }}>{slide.icon}</span>
-        {slide.text}
+        <span style={{ fontSize: '12px' }}>{slide.text}</span>  {/* ← fontSize aquí */}
       </span>
       {/* Dots */}
       <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '4px' }}>
