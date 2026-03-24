@@ -281,7 +281,7 @@ export default function AdminDashboard() {
               style={{ width: '100%', padding: '9px 12px', background: C.g, boxShadow: insetSm, border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', color: C.silver, fontSize: '13px', fontFamily: "'DM Sans',sans-serif", outline: 'none' }} />
           </div>
           ))}
-          {[['discountType', 'Tipo', [['percent', 'Porcentaje %'], ['fixed', 'Fijo $'], ['free', 'Gratis']]], ['appliesTo', 'Aplica a', [['both', 'Ambos'], ['new_card', 'Tarjeta nueva'], ['renewal', 'Renovación']]]].map(([k, l, opts]: [any, any, any]) => (
+          {([['discountType', 'Tipo', [['percent', 'Porcentaje %'], ['fixed', 'Fijo $'], ['free', 'Gratis']]], ['appliesTo', 'Aplica a', [['both', 'Ambos'], ['new_card', 'Tarjeta nueva'], ['renewal', 'Renovación']]]] as [any, any, any][]).map(([k, l, opts]) => (
             <div key={k}>
               <div style={{ fontSize: '10px', color: C.smoke, marginBottom: '5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em' }}>{l}</div>
               <select value={(newPromo as any)[k]} onChange={e => setNewPromo(pr => ({ ...pr, [k]: e.target.value }))}
