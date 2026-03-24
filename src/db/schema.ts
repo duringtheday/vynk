@@ -90,6 +90,7 @@ export const promoCodes = pgTable('promo_codes', {
   usesCount:     integer('uses_count').default(0).notNull(),
   expiresAt:     timestamp('expires_at'),
   isActive:      boolean('is_active').default(true).notNull(),
+  phoneBypass:   boolean('phone_bypass').default(false).notNull(), // ← NUEVO
   createdAt:     timestamp('created_at').defaultNow().notNull(),
 })
 

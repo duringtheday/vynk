@@ -1,550 +1,430 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+// src/app/admin/page.tsx
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
-const C = {
-  g:'#0D0F12', gold:'#D4A84F', goldLt:'#E8C06A', goldDk:'#A07830',
-  silver:'#BFC3C9', smoke:'#6F737A', carbon:'#050607',
-  nd:'#08090B', nl:'#141720',
-}
+const C = { g:'#0D0F12', gold:'#D4A84F', goldLt:'#E8C06A', goldDk:'#A07830', silver:'#BFC3C9', smoke:'#6F737A', carbon:'#050607', nd:'#08090B', nl:'#141720', red:'#ef4444', green:'#22c55e' }
 const raised   = `5px 5px 14px ${C.nd}, -3px -3px 10px ${C.nl}`
 const raisedSm = `3px 3px 8px ${C.nd}, -2px -2px 6px ${C.nl}`
 const insetSm  = `inset 2px 2px 6px ${C.nd}, inset -2px -2px 5px ${C.nl}`
 const goldBox  = `4px 4px 14px ${C.nd}, 0 0 22px rgba(212,168,79,0.2)`
 
-type Section = 'overview'|'daily'|'clients'|'orders'|'accounting'|'metrics'|'promos'|'mycard'|'security'|'rules'|'compliance'
+type PhoneMode = 'required'|'optional'|'off'
+type Section = 'overview'|'clients'|'orders'|'accounting'|'metrics'|'promos'|'business'|'security'
 
-const NAV:{s:Section;l:string;g:string;icon:string}[] = [
-  {s:'overview',   l:'Overview',            g:'Core',    icon:'◎'},
-  {s:'daily',      l:'Daily Report',        g:'Core',    icon:'📅'},
-  {s:'clients',    l:'Clients',             g:'Core',    icon:'👥'},
-  {s:'orders',     l:'Orders & Payments',   g:'Core',    icon:'💳'},
-  {s:'accounting', l:'Accounting / P&L',    g:'Finance', icon:'📊'},
-  {s:'metrics',    l:'Metrics & Analytics', g:'Finance', icon:'📈'},
-  {s:'promos',     l:'Promo Codes',         g:'Finance', icon:'🏷️'},
-  {s:'mycard',     l:'My Card',             g:'Admin',   icon:'🪪'},
-  {s:'rules',      l:'Business Rules',      g:'Admin',   icon:'⚙️'},
-  {s:'security',   l:'Security Log',        g:'Admin',   icon:'🔐'},
-  {s:'compliance', l:'Compliance',          g:'Admin',   icon:'✅'},
-]
+const fmt$ = (c:number) => `$${(c/100).toFixed(2)}`
+const fmtDate = (d:any) => d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'
 
-function Metric({l,v,accent}:{l:string;v:string;accent?:string}) {
+function Stat({ label, value }:{ label:string; value:string }) {
   return (
-    <div style={{background:C.g,boxShadow:raised,borderRadius:'16px',padding:'20px',border:'1px solid rgba(255,255,255,0.025)'}}>
-      <div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',color:C.smoke,marginBottom:'10px'}}>{l}</div>
-      <div style={{fontSize:'26px',fontWeight:800,color:accent||C.silver,fontFamily:"'Syne',sans-serif",lineHeight:1}}>{v}</div>
+    <div style={{ background:C.g, boxShadow:raised, borderRadius:'18px', padding:'20px 22px', border:'1px solid rgba(255,255,255,0.03)', flex:'1 1 150px', minWidth:'130px' }}>
+      <div style={{ fontSize:'10px', color:C.smoke, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'8px' }}>{label}</div>
+      <div style={{ fontSize:'24px', fontWeight:800, color:C.gold, fontFamily:"'Syne',sans-serif" }}>{value}</div>
+    </div>
+  )
+}
+function Card({ children, style }:{ children:React.ReactNode; style?:React.CSSProperties }) {
+  return <div style={{ background:C.g, boxShadow:raised, borderRadius:'20px', padding:'24px', border:'1px solid rgba(255,255,255,0.03)', ...style }}>{children}</div>
+}
+function SHead({ title, sub }:{ title:string; sub?:string }) {
+  return (
+    <div style={{ marginBottom:'22px' }}>
+      <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:'20px', fontWeight:800, color:C.silver, marginBottom:'3px' }}>{title}</h2>
+      {sub&&<p style={{ fontSize:'13px', color:C.smoke }}>{sub}</p>}
     </div>
   )
 }
 
-function Bdg({t,type}:{t:string;type:'green'|'amber'|'red'|'gray'}) {
-  const m:{[k:string]:[string,string]}={
-    green:['rgba(74,222,128,0.1)','#4ade80'],
-    amber:[`rgba(212,168,79,0.1)`,C.gold],
-    red:['rgba(239,68,68,0.1)','#ef4444'],
-    gray:['rgba(255,255,255,0.06)',C.smoke]
+function PhoneModeToggle() {
+  const [mode, setMode]     = useState<PhoneMode>('required')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving]   = useState(false)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    try {
+      const r = await fetch('/api/admin/phone-settings')
+      const d = await r.json()
+      if (d.mode) setMode(d.mode)
+    } catch { toast.error('No se pudo cargar la config del teléfono') }
+    setLoading(false)
   }
-  return <span style={{background:m[type][0],color:m[type][1],padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:700,border:`1px solid ${m[type][1]}33`}}>{t}</span>
-}
 
-function Panel({children,title,action}:{children:React.ReactNode;title?:string;action?:React.ReactNode}) {
+  async function apply(m:PhoneMode) {
+    setSaving(true)
+    try {
+      const r = await fetch('/api/admin/phone-settings', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:m}) })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error)
+      setMode(m)
+      toast.success(`Filtro de teléfono: ${m}`)
+    } catch(e:any) { toast.error('Error: '+e.message) }
+    setSaving(false)
+  }
+
+  const OPTS:[PhoneMode,string,string,string][] = [
+    ['required','🔒','Obligatorio','El usuario DEBE ingresar teléfono. Máxima seguridad.'],
+    ['optional','⚡','Opcional','Campo visible pero no requerido. Todos pueden pasar.'],
+    ['off',     '📵','Desactivado','Campo oculto completamente. Máxima accesibilidad.'],
+  ]
+
   return (
-    <div style={{background:C.g,boxShadow:raised,borderRadius:'18px',padding:'22px',border:'1px solid rgba(255,255,255,0.025)',marginBottom:'16px'}}>
-      {(title||action)&&(
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'18px'}}>
-          {title&&<div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:'14px',color:C.silver}}>{title}</div>}
-          {action}
+    <div>
+      <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'18px' }}>
+        <span style={{ fontSize:'24px' }}>📱</span>
+        <div>
+          <div style={{ fontSize:'15px', fontWeight:700, color:C.silver }}>Filtro de Número de Teléfono</div>
+          <div style={{ fontSize:'12px', color:C.smoke }}>Controla si el teléfono es obligatorio en el registro</div>
         </div>
-      )}
-      {children}
-    </div>
-  )
-}
-
-function Tbl({heads,rows}:{heads:string[];rows:React.ReactNode[][]}) {
-  if(!rows.length) return <div style={{color:C.smoke,fontSize:'13px',textAlign:'center',padding:'32px 0',opacity:.6}}>No data yet</div>
-  return (
-    <div style={{overflowX:'auto'}}>
-      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
-        <thead>
-          <tr>{heads.map(h=><th key={h} style={{textAlign:'left',padding:'0 12px 10px 0',borderBottom:'1px solid rgba(255,255,255,0.05)',color:C.smoke,fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',whiteSpace:'nowrap'}}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map((row,i)=>(
-            <tr key={i} style={{borderBottom:'1px solid rgba(255,255,255,0.025)'}}>
-              {row.map((cell,j)=><td key={j} style={{padding:'10px 12px 10px 0',color:C.silver,verticalAlign:'middle',fontSize:'12px'}}>{cell}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        {loading&&<span style={{ marginLeft:'auto', fontSize:'12px', color:C.smoke }}>Cargando…</span>}
+      </div>
+      <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'16px' }}>
+        {OPTS.map(([key,icon,label,desc]) => {
+          const active = mode===key
+          const color  = key==='required'?C.red:key==='optional'?C.gold:C.smoke
+          return (
+            <button key={key} onClick={()=>!saving&&!loading&&apply(key as PhoneMode)} disabled={saving||loading}
+              style={{ flex:'1 1 150px', padding:'16px 14px', textAlign:'left', borderRadius:'14px', border:active?`1px solid ${color}40`:'1px solid rgba(255,255,255,0.03)', background:C.g, boxShadow:active?insetSm:raisedSm, cursor:saving||loading?'not-allowed':'pointer', transition:'all .2s', opacity:saving?.6:1 }}>
+              <div style={{ fontSize:'20px', marginBottom:'6px' }}>{icon}</div>
+              <div style={{ fontSize:'13px', fontWeight:700, color:active?color:C.silver, marginBottom:'4px' }}>
+                {label} {active&&<span style={{ marginLeft:'7px', fontSize:'9px', background:`${color}20`, color, padding:'2px 6px', borderRadius:'5px', fontWeight:700 }}>ACTIVO</span>}
+              </div>
+              <div style={{ fontSize:'11px', color:C.smoke, lineHeight:1.5 }}>{desc}</div>
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ padding:'12px 14px', background:'rgba(255,255,255,0.02)', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.04)', fontSize:'11px', color:C.smoke, lineHeight:1.7 }}>
+        💡 <strong style={{ color:C.silver }}>Bypass por código promo:</strong> Aunque esté en "Obligatorio", si el usuario aplica un código con <em>Phone Bypass ON</em>, el campo se oculta solo para él. Configúralo en <strong style={{ color:C.gold }}>Códigos Promo</strong>.
+      </div>
     </div>
   )
 }
 
 export default function AdminDashboard() {
-  const searchParams = useSearchParams()
-  const [active,setActive]       = useState<Section>((searchParams.get('s') as Section)||'overview')
-  const [data,setData]           = useState<any>(null)
-  const [loading,setLoading]     = useState(true)
-  const [timer,setTimer]         = useState(15*60)
-  const [collapsed,setCollapsed] = useState(false)
   const router = useRouter()
+  const [active, setActive]       = useState<Section>('overview')
+  const [data, setData]           = useState<any>({})
+  const [loading, setLoading]     = useState(false)
+  const [newPromo, setNewPromo]   = useState({ code:'', discountType:'percent', discountValue:'', appliesTo:'both', maxUses:'', phoneBypass:false })
+  const [editPromo, setEditPromo] = useState<any>(null)
 
-  useEffect(()=>{
-    const check=()=>{ if(window.innerWidth<768) setCollapsed(true) }
-    check(); window.addEventListener('resize',check)
-    return()=>window.removeEventListener('resize',check)
-  },[])
+  useEffect(() => { if(active!=='business') fetchSection(active) }, [active])
 
-  const load = useCallback(async(s:Section)=>{
-    setLoading(true); setData(null)
+  async function fetchSection(s:Section) {
+    setLoading(true)
     try {
-      const res=await fetch(`/api/admin/dashboard?section=${s}`)
-      if(res.status===401){router.push('/admin/login');return}
-      setData(await res.json())
-    } catch { toast.error('Failed to load') }
-    finally { setLoading(false) }
-  },[router])
+      const r = await fetch(`/api/admin/dashboard?section=${s}`)
+      if(r.status===401){ router.push('/admin/login'); return }
+      setData((p:any)=>({ ...p, [s]: await r.json() }))
+    } catch { toast.error('Error al cargar datos') }
+    setLoading(false)
+  }
 
-  useEffect(()=>{load(active)},[active,load])
-  useEffect(()=>{
-    const t=setInterval(()=>setTimer(n=>{if(n<=1){lock();return 0}return n-1}),1000)
-    return()=>clearInterval(t)
-  },[])
-
-  async function lock(){
-    await fetch('/api/admin/auth',{method:'DELETE'})
+  async function logout() {
+    await fetch('/api/admin/auth', { method:'DELETE' })
     router.push('/admin/login')
   }
 
-  const mm=Math.floor(timer/60), ss=String(timer%60).padStart(2,'0')
-  const groups=[...new Set(NAV.map(n=>n.g))]
-  const fmt=(c:number)=>`$${(c/100).toFixed(2)}`
-  const fmtDt=(d:string)=>new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+  async function createPromo() {
+    if(!newPromo.code) return toast.error('El código es requerido')
+    const r = await fetch('/api/admin/dashboard', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...newPromo,discountValue:Number(newPromo.discountValue)||0,maxUses:newPromo.maxUses?Number(newPromo.maxUses):null}) })
+    const d = await r.json()
+    if(!r.ok) return toast.error(d.error)
+    toast.success('Código creado')
+    setNewPromo({ code:'', discountType:'percent', discountValue:'', appliesTo:'both', maxUses:'', phoneBypass:false })
+    fetchSection('promos')
+  }
 
-  return (
-    <div style={{display:'flex',minHeight:'100dvh',background:C.g,fontFamily:"'DM Sans',sans-serif",color:C.silver}}>
-      <aside style={{width:collapsed?'72px':'224px',flexShrink:0,background:C.g,boxShadow:`6px 0 24px ${C.nd}`,display:'flex',flexDirection:'column',borderRight:'1px solid rgba(255,255,255,0.025)',transition:'width .25s ease',overflow:'hidden'}}>
-        <div style={{padding:'16px 12px',borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
-          <div onClick={()=>setCollapsed(c=>!c)} style={{padding:collapsed?'10px':'14px 16px',background:C.g,boxShadow:raised,borderRadius:'14px',border:'1px solid rgba(212,168,79,0.08)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .2s'}}>
-            <img src="/logo.png" alt="Vynk" style={{width:'100%',height:'auto',maxWidth:collapsed?'26px':'76px',display:'block',transition:'max-width .2s'}}/>
-          </div>
-          {!collapsed&&<div style={{fontSize:'9px',color:C.smoke,marginTop:'8px',textAlign:'center',letterSpacing:'.1em',textTransform:'uppercase',fontWeight:700,opacity:.4}}>Owner Dashboard</div>}
-        </div>
-        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',padding:'10px'}}>
-          {groups.map(g=>(
-            <div key={g} style={{marginBottom:'4px'}}>
-              {!collapsed&&<div style={{fontSize:'9px',fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(111,115,122,0.35)',padding:'10px 4px 6px'}}>{g}</div>}
-              <div style={{display:'flex',flexDirection:'column',gap:'3px'}}>
-                {NAV.filter(n=>n.g===g).map(n=>{
-                  const on=active===n.s
-                  return (
-                    <button key={n.s} onClick={()=>{setActive(n.s);window.history.replaceState(null,'',`/admin?s=${n.s}`)}} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',padding:collapsed?'11px 0':'10px 10px',justifyContent:collapsed?'center':'flex-start',borderRadius:'12px',background:C.g,boxShadow:on?insetSm:raisedSm,border:on?`1px solid rgba(212,168,79,0.1)`:'1px solid rgba(255,255,255,0.02)',color:on?C.gold:C.smoke,fontSize:'12px',fontWeight:on?600:400,cursor:'pointer',transition:'all .18s',textAlign:'left',fontFamily:"'DM Sans',sans-serif",outline:'none'}}>
-                      <span style={{width:'30px',height:'30px',borderRadius:'9px',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',background:on?`rgba(212,168,79,0.1)`:'transparent',boxShadow:on?insetSm:'none',transition:'all .18s'}}>{n.icon}</span>
-                      {!collapsed&&<span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{n.l}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{padding:'12px',borderTop:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
-          {!collapsed&&(
-            <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'9px 12px',marginBottom:'10px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <span style={{fontSize:'10px',color:C.smoke}}>Session</span>
-              <span style={{color:timer<120?'#ef4444':timer<300?C.gold:C.silver,fontWeight:700,fontFamily:'monospace',fontSize:'13px'}}>{mm}:{ss}</span>
-            </div>
-          )}
-          <button onClick={lock} style={{width:'100%',padding:'9px',borderRadius:'10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.15)',color:'#ef4444',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',outline:'none',transition:'all .15s'}}>
-            🔒{!collapsed&&' Lock'}
-          </button>
-        </div>
-      </aside>
+  async function togglePromo(id:string, isActive:boolean) {
+    await fetch('/api/admin/dashboard', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id,isActive}) })
+    fetchSection('promos')
+  }
 
-      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 24px',height:'56px',background:C.g,borderBottom:'1px solid rgba(255,255,255,0.025)',boxShadow:`0 4px 16px ${C.nd}`,flexShrink:0}}>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:'15px',color:C.silver,display:'flex',alignItems:'center',gap:'8px'}}>
-            <span>{NAV.find(n=>n.s===active)?.icon}</span>
-            {NAV.find(n=>n.s===active)?.l}
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'6px',background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.15)',borderRadius:'20px',padding:'5px 12px',fontSize:'10px',fontWeight:700,color:'#4ade80'}}>
-              <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#4ade80',boxShadow:'0 0 6px #4ade80'}}/>
-              2FA Active
-            </div>
-            <div style={{fontSize:'11px',color:C.smoke,background:C.g,boxShadow:raisedSm,padding:'6px 12px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.03)'}}>
-              {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
-            </div>
-          </div>
-        </div>
-        <div style={{flex:1,overflowY:'auto',padding:'24px'}}>
-          {loading?(
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'300px',flexDirection:'column',gap:'14px'}}>
-              <div style={{width:'44px',height:'44px',background:C.g,boxShadow:raised,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px'}}>⏳</div>
-              <div style={{color:C.smoke,fontSize:'13px'}}>Loading…</div>
-            </div>
-          ):(
-            <Content section={active} data={data} reload={()=>load(active)} fmt={fmt} fmtDt={fmtDt}/>
-          )}
-        </div>
+  async function deletePromo(id:string) {
+    if(!confirm('¿Eliminar este código?')) return
+    await fetch('/api/admin/dashboard', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id}) })
+    toast.success('Eliminado'); fetchSection('promos')
+  }
+
+  async function saveEdit() {
+    await fetch('/api/admin/dashboard', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'update',...editPromo}) })
+    toast.success('Actualizado'); setEditPromo(null); fetchSection('promos')
+  }
+
+  const NAV:{key:Section;icon:string;label:string}[] = [
+    {key:'overview',   icon:'⚡', label:'Overview'},
+    {key:'clients',    icon:'👥', label:'Clientes'},
+    {key:'orders',     icon:'💳', label:'Órdenes'},
+    {key:'accounting', icon:'📊', label:'Contabilidad'},
+    {key:'metrics',    icon:'📈', label:'Métricas'},
+    {key:'promos',     icon:'🎟', label:'Códigos Promo'},
+    {key:'business',   icon:'⚙️', label:'Business Rules'},
+    {key:'security',   icon:'🔐', label:'Seguridad'},
+  ]
+
+  function renderOverview() {
+    const d = data.overview; if(!d) return null
+    return <>
+      <SHead title="Overview" sub="Resumen en tiempo real" />
+      <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', marginBottom:'24px' }}>
+        <Stat label="Hoy" value={fmt$(d.todayCents||0)} />
+        <Stat label="Total" value={fmt$(d.totalCents||0)} />
+        <Stat label="Tarjetas Activas" value={String(d.activeCards||0)} />
+        <Stat label="Usuarios" value={String(d.totalUsers||0)} />
       </div>
-    </div>
-  )
-}
-
-function Content({section,data,reload,fmt,fmtDt}:{section:Section;data:any;reload:()=>void;fmt:(c:number)=>string;fmtDt:(d:string)=>string}) {
-  if(!data) return null
-  const g4={display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
-  const g3={display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'14px',marginBottom:'20px'} as React.CSSProperties
-  const g2={display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'14px',marginBottom:'16px'} as React.CSSProperties
-
-  if(section==='overview') return (
-    <div>
-      <div style={g4}>
-        <Metric l="Today Revenue" v={fmt(data.todayCents||0)} accent={C.gold}/>
-        <Metric l="Total Revenue" v={fmt(data.totalCents||0)} accent='#a78bfa'/>
-        <Metric l="Active Cards"  v={String(data.activeCards||0)}/>
-        <Metric l="Total Users"   v={String(data.totalUsers||0)}/>
-      </div>
-      <Panel title="Recent transactions">
-        <Tbl heads={['Type','Amount','Method','Country','Date','Status']}
-          rows={(data.recentPayments||[]).map((p:any)=>[
-            <Bdg t={p.type==='new_card'?'New card':'Renewal'} type={p.type==='new_card'?'amber':'gray'}/>,
-            <span style={{fontWeight:700,color:C.gold}}>{fmt(p.amount_cents)}</span>,
-            p.payment_method||'—', p.country||'—', fmtDt(p.created_at),
-            <Bdg t={p.status} type={p.status==='paid'?'green':p.status==='failed'?'red':'gray'}/>,
-          ])}/>
-      </Panel>
-    </div>
-  )
-
-  if(section==='daily') return (
-    <div>
-      <div style={g3}>
-        <Metric l="Today Gross" v={fmt(Number(data.daily?.[0]?.gross_cents)||0)} accent={C.gold}/>
-        <Metric l="Stripe Fees" v={fmt(Number(data.daily?.[0]?.stripe_fee_cents)||0)} accent='#ef4444'/>
-        <Metric l="Today Net"   v={fmt(Number(data.daily?.[0]?.net_cents)||0)} accent='#4ade80'/>
-      </div>
-      <Panel title="Daily (last 90 days)">
-        <Tbl heads={['Date','Transactions','Gross','Fees','Net']}
-          rows={(data.daily||[]).map((d:any)=>[
-            fmtDt(d.day), d.transactions, fmt(d.gross_cents),
-            <span style={{color:'#ef4444'}}>−{fmt(d.stripe_fee_cents)}</span>,
-            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(d.net_cents)}</span>,
-          ])}/>
-      </Panel>
-    </div>
-  )
-
-  if(section==='clients') return (
-    <Panel title={`Clients (${data.clients?.length||0})`}>
-      <Tbl heads={['Email','Name','Owner','Active','Joined']}
-        rows={(data.clients||[]).map((c:any)=>[
-          <span style={{fontFamily:'monospace',fontSize:'11px'}}>{c.email||'—'}</span>,
-          c.full_name||'—',
-          c.is_owner?<Bdg t="Owner" type="amber"/>:<span style={{color:C.smoke}}>—</span>,
-          c.is_active?<Bdg t="Active" type="green"/>:<Bdg t="Inactive" type="gray"/>,
-          fmtDt(c.created_at),
-        ])}/>
-    </Panel>
-  )
-
-  if(section==='orders') return (
-    <Panel title={`Orders (${data.orders?.length||0})`}>
-      <Tbl heads={['Type','Amount','Method','Country','Promo','Date','Status']}
-        rows={(data.orders||[]).map((p:any)=>[
-          <Bdg t={p.type==='new_card'?'New':'Renewal'} type={p.type==='new_card'?'amber':'gray'}/>,
-          <span style={{fontWeight:700,color:C.gold}}>{fmt(p.amount_cents)}</span>,
-          p.payment_method||'—', p.country||'—',
-          p.promo_code?<Bdg t={p.promo_code} type="amber"/>:<span style={{color:C.smoke}}>—</span>,
-          fmtDt(p.created_at),
-          <Bdg t={p.status} type={p.status==='paid'?'green':p.status==='failed'?'red':'gray'}/>,
-        ])}/>
-    </Panel>
-  )
-
-  if(section==='accounting') return (
-    <div>
-      <Panel title="Monthly">
-        <Tbl heads={['Month','Transactions','Gross','Net','New','Renewals']}
-          rows={(data.monthly||[]).map((m:any)=>[
-            fmtDt(m.month), m.transactions, fmt(m.gross_cents),
-            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(m.net_cents)}</span>,
-            m.new_cards, m.renewals,
-          ])}/>
-      </Panel>
-      <Panel title="Daily">
-        <Tbl heads={['Date','Txns','Gross','Fees','Net']}
-          rows={(data.daily||[]).map((d:any)=>[
-            fmtDt(d.day), d.transactions, fmt(d.gross_cents),
-            <span style={{color:'#ef4444'}}>−{fmt(d.stripe_fee_cents)}</span>,
-            <span style={{fontWeight:700,color:'#4ade80'}}>{fmt(d.net_cents)}</span>,
-          ])}/>
-      </Panel>
-    </div>
-  )
-
-  if(section==='metrics') return (
-    <div>
-      <div style={g4}>
-        <Metric l="Total Views"    v={String(data.totalViews||0)} accent='#a78bfa'/>
-        <Metric l="Contacts Saved" v={String(data.totalSaves||0)} accent={C.gold}/>
-        <Metric l="Top Country"    v={data.byCountry?.[0]?.country||'—'}/>
-        <Metric l="Top Source"     v={data.bySource?.[0]?.source||'—'}/>
-      </div>
-      <div style={g2}>
-        <Panel title="By country">
-          {(data.byCountry||[]).slice(0,8).map((r:any)=>{
-            const total=(data.byCountry||[]).reduce((s:number,x:any)=>s+Number(x.cnt),0)
-            const pct=total>0?Math.round((Number(r.cnt)/total)*100):0
-            return (
-              <div key={r.country} style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',fontSize:'12px'}}>
-                <span style={{width:'28px',color:C.silver}}>{r.country||'?'}</span>
-                <div style={{flex:1,background:'rgba(255,255,255,0.04)',borderRadius:'4px',height:'6px',boxShadow:insetSm}}>
-                  <div style={{width:`${pct}%`,height:'6px',background:C.gold,borderRadius:'4px'}}/>
-                </div>
-                <span style={{color:C.smoke,minWidth:'30px',textAlign:'right'}}>{pct}%</span>
-              </div>
-            )
-          })}
-        </Panel>
-        <Panel title="By source">
-          {(data.bySource||[]).map((r:any)=>{
-            const total=(data.bySource||[]).reduce((s:number,x:any)=>s+Number(x.cnt),0)
-            const pct=total>0?Math.round((Number(r.cnt)/total)*100):0
-            return (
-              <div key={r.source} style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',fontSize:'12px'}}>
-                <span style={{width:'60px',color:C.silver,textTransform:'capitalize'}}>{r.source||'direct'}</span>
-                <div style={{flex:1,background:'rgba(255,255,255,0.04)',borderRadius:'4px',height:'6px',boxShadow:insetSm}}>
-                  <div style={{width:`${pct}%`,height:'6px',background:'#a78bfa',borderRadius:'4px'}}/>
-                </div>
-                <span style={{color:C.smoke,minWidth:'30px',textAlign:'right'}}>{pct}%</span>
-              </div>
-            )
-          })}
-        </Panel>
-      </div>
-    </div>
-  )
-
-  if(section==='promos') return <PromoSection data={data} reload={reload}/>
-
-  if(section==='security') return (
-    <div>
-      <div style={g4}>
-        <Metric l="2FA"           v="Active" accent='#4ade80'/>
-        <Metric l="Auto-lock"     v="15 min"/>
-        <Metric l="Failed Logins" v={String((data.logs||[]).filter((l:any)=>l.event?.includes('failed')).length)} accent='#ef4444'/>
-        <Metric l="Total Events"  v={String(data.logs?.length||0)}/>
-      </div>
-      <Panel title="Access log">
-        <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
-          {(data.logs||[]).map((l:any)=>(
-            <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:'10px',padding:'10px 12px',borderRadius:'10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.025)'}}>
-              <div style={{width:'8px',height:'8px',borderRadius:'50%',marginTop:'3px',flexShrink:0,background:l.event?.includes('success')?'#4ade80':l.event?.includes('failed')?'#ef4444':C.gold}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:'12px',fontWeight:500,color:C.silver,textTransform:'capitalize'}}>{l.event?.replace(/_/g,' ')}</div>
-                <div style={{fontSize:'11px',color:C.smoke,marginTop:'2px'}}>{l.ip||'—'} · {fmtDt(l.created_at)}</div>
-              </div>
+      <Card>
+        <div style={{ fontSize:'13px', fontWeight:700, color:C.silver, marginBottom:'14px' }}>Pagos Recientes</div>
+        {!d.recentPayments?.length ? <div style={{ color:C.smoke,fontSize:'13px' }}>Sin pagos aún.</div>
+          : d.recentPayments.map((p:any) => (
+          <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+            <div>
+              <div style={{ fontSize:'13px', color:C.silver, fontWeight:600 }}>{fmt$(p.amount_cents)} · {p.type}</div>
+              <div style={{ fontSize:'11px', color:C.smoke }}>{fmtDate(p.created_at)}</div>
             </div>
-          ))}
-        </div>
-      </Panel>
-    </div>
-  )
-
-  if(section==='mycard') return (
-    <div style={{maxWidth:'500px'}}>
-      <Panel title="Owner privileges">
-        {[
-          {l:'Edit card anytime',      v:'Free always', t:'green' as const},
-          {l:'Unlimited updates',      v:'Unlimited',   t:'green' as const},
-          {l:'No payment dialogs',     v:'Bypassed',    t:'green' as const},
-          {l:'Create promo codes',     v:'Full access', t:'amber' as const},
-          {l:'Admin dashboard',        v:'Full access', t:'amber' as const},
-          {l:'All analytics',          v:'Full access', t:'amber' as const},
-        ].map(r=>(
-          <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-            <span style={{fontSize:'13px',color:C.silver}}>{r.l}</span>
-            <Bdg t={r.v} type={r.t}/>
+            <span style={{ padding:'3px 9px', borderRadius:'6px', fontSize:'10px', fontWeight:700, background:p.status==='paid'?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)', color:p.status==='paid'?C.green:C.red }}>{p.status?.toUpperCase()}</span>
           </div>
         ))}
-      </Panel>
-      <Panel>
-        <a href="/builder" style={{display:'block',padding:'14px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'14px',borderRadius:'12px',textAlign:'center',textDecoration:'none',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif"}}>
-          → Go to card builder
-        </a>
-      </Panel>
-    </div>
-  )
+      </Card>
+    </>
+  }
 
-  if(section==='rules') return (
-    <div style={{maxWidth:'500px'}}>
-      <Panel title="Pricing rules">
-        {[
-          {l:'New card creation', v:'$20.00', note:'One-time'},
-          {l:'Identity renewal',  v:'$10.00', note:'Archives previous'},
-          {l:'Content updates',   v:'Free',   note:'Colors, bio, socials'},
-          {l:'Owner edits',       v:'Free',   note:'All fields, always'},
-        ].map(r=>(
-          <div key={r.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-            <div>
-              <div style={{fontSize:'13px',color:C.silver,fontWeight:500}}>{r.l}</div>
-              <div style={{fontSize:'11px',color:C.smoke,marginTop:'2px'}}>{r.note}</div>
-            </div>
-            <span style={{fontWeight:700,color:C.gold,fontFamily:"'Syne',sans-serif",fontSize:'16px'}}>{r.v}</span>
+  function renderClients() {
+    const d = data.clients; if(!d) return null
+    return <>
+      <SHead title="Clientes" sub={`${d.clients?.length||0} usuarios registrados`} />
+      <Card>
+        {!d.clients?.length ? <div style={{ color:C.smoke,fontSize:'13px' }}>Sin usuarios.</div>
+          : d.clients.map((u:any) => (
+          <div key={u.id} style={{ padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+            <div style={{ fontSize:'13px', color:C.silver, fontWeight:600 }}>{u.email}</div>
+            <div style={{ fontSize:'11px', color:C.smoke }}>{u.clerk_id} · {fmtDate(u.created_at)}</div>
           </div>
         ))}
-      </Panel>
-      <div style={g2 as any}>
-        <Panel title="Paid fields ($10)">
-          <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-            {['Full name','Title','Company','Photo','Logo','Phone','WhatsApp','Email'].map(f=>(
-              <span key={f} style={{padding:'5px 12px',background:'rgba(212,168,79,0.08)',border:'1px solid rgba(212,168,79,0.2)',borderRadius:'20px',fontSize:'11px',color:C.gold,fontWeight:600}}>{f}</span>
-            ))}
-          </div>
-        </Panel>
-        <Panel title="Free fields">
-          <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-            {['Tagline','Bio','Services','Instagram','LinkedIn','Twitter','Telegram','TikTok','YouTube','Website','Colors','Design'].map(f=>(
-              <span key={f} style={{padding:'5px 12px',background:'rgba(74,222,128,0.06)',border:'1px solid rgba(74,222,128,0.15)',borderRadius:'20px',fontSize:'11px',color:'#4ade80',fontWeight:600}}>{f}</span>
-            ))}
-          </div>
-        </Panel>
-      </div>
-    </div>
-  )
-
-  if(section==='compliance') return (
-    <Panel title="Legal compliance">
-      <Tbl heads={['Document','Standard','Status']}
-        rows={[
-          ['Terms & Conditions','International',<Bdg t="Live" type="green"/>],
-          ['Privacy Policy','GDPR · CCPA · LGPD',<Bdg t="Live" type="green"/>],
-          ['Refund Policy','No-refund after publish',<Bdg t="Live" type="green"/>],
-          ['PCI DSS','Stripe (delegated)',<Bdg t="Live" type="green"/>],
-          ['TLS 1.3','Always on',<Bdg t="Live" type="green"/>],
-        ]}/>
-    </Panel>
-  )
-
-  return null
-}
-
-function PromoSection({data,reload}:{data:any;reload:()=>void}) {
-  const inpSt:React.CSSProperties={padding:'9px 12px',border:'1px solid rgba(255,255,255,0.04)',borderRadius:'10px',background:C.g,color:C.silver,fontSize:'12px',fontFamily:"'DM Sans',sans-serif",outline:'none',boxShadow:insetSm,width:'100%'}
-  const EMPTY = {code:'',discountType:'percent',discountValue:20,appliesTo:'both',maxUses:'',expiresAt:''}
-  const [form,setForm]     = useState(EMPTY)
-  const [editing,setEditing] = useState<any>(null)
-  const [loading,setLoading] = useState(false)
-
-  function startEdit(p:any){
-    setEditing(p)
-    setForm({
-      code:          p.code,
-      discountType:  p.discountType  ?? p.discount_type  ?? 'percent',
-      discountValue: p.discountValue ?? p.discount_value ?? 0,
-      appliesTo:     p.appliesTo     ?? p.applies_to     ?? 'both',
-      maxUses:       String(p.maxUses ?? p.max_uses ?? ''),
-      expiresAt:     (p.expiresAt??p.expires_at) ? new Date(p.expiresAt??p.expires_at).toISOString().slice(0,10) : '',
-    })
-  }
-  function cancelEdit(){ setEditing(null); setForm(EMPTY) }
-
-  async function save(){
-    if(!form.code){toast.error('Enter a code');return}
-    setLoading(true)
-    const body={...form, discountValue:Number(form.discountValue), maxUses:form.maxUses?Number(form.maxUses):null, expiresAt:form.expiresAt||null}
-    if(editing){
-      const r=await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,id:editing.id,action:'update'})})
-      r.ok?toast.success('Updated!'):toast.error('Error updating')
-      setEditing(null)
-    } else {
-      const r=await fetch('/api/admin/dashboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-      r.ok?toast.success('Created!'):toast.error('Error creating')
-    }
-    setForm(EMPTY); reload(); setLoading(false)
+      </Card>
+    </>
   }
 
-  async function toggleActive(id:string,current:boolean){
-    await fetch('/api/admin/dashboard',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,isActive:!current,action:'toggle'})})
-    reload()
-  }
-
-  async function del(id:string,code:string){
-    if(!confirm(`Delete "${code}"?`)) return
-    await fetch('/api/admin/dashboard',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})})
-    toast.success('Deleted'); reload()
-  }
-
-  const isActive=(p:any)=>p.isActive??p.is_active
-  const val=(p:any)=>p.discountValue??p.discount_value
-  const typ=(p:any)=>p.discountType??p.discount_type
-  const uses=(p:any)=>p.usesCount??p.uses_count
-  const maxU=(p:any)=>p.maxUses??p.max_uses
-  const appTo=(p:any)=>p.appliesTo??p.applies_to
-  const exp=(p:any)=>p.expiresAt??p.expires_at
-
-  return (
-    <div>
-      {/* Edit border wrapper */}
-      <div style={{borderRadius:'18px',border:editing?`1px solid rgba(212,168,79,0.3)`:'1px solid transparent',transition:'border .2s',marginBottom:'16px'}}>
-        <Panel title={editing?`Editing: ${editing.code}`:'Create promo code'}
-          action={editing&&<button onClick={cancelEdit} style={{padding:'5px 12px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'none',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>}>
-          <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr auto',gap:'10px',alignItems:'end'}}>
+  function renderOrders() {
+    const d = data.orders; if(!d) return null
+    return <>
+      <SHead title="Órdenes" sub="Todos los registros de pago" />
+      <Card>
+        {!d.orders?.length ? <div style={{ color:C.smoke,fontSize:'13px' }}>Sin órdenes.</div>
+          : d.orders.map((p:any) => (
+          <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
             <div>
-              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Code</label>
-              <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value.toUpperCase()}))} placeholder="VYNK50" style={{...inpSt,opacity:editing?.5:1}} disabled={!!editing}/>
+              <div style={{ fontSize:'13px', color:C.silver, fontWeight:600 }}>{fmt$(p.amount_cents)} · {p.type}</div>
+              <div style={{ fontSize:'11px', color:C.smoke }}>{p.user_id} · {fmtDate(p.created_at)}</div>
             </div>
-            <div>
-              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Type</label>
-              <select value={form.discountType} onChange={e=>setForm(f=>({...f,discountType:e.target.value}))} style={inpSt}>
-                <option value="percent">% off</option>
-                <option value="fixed">$ off</option>
-                <option value="free">100% free</option>
+            <span style={{ padding:'3px 9px', borderRadius:'6px', fontSize:'10px', fontWeight:700, background:p.status==='paid'?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)', color:p.status==='paid'?C.green:C.red }}>{p.status?.toUpperCase()}</span>
+          </div>
+        ))}
+      </Card>
+    </>
+  }
+
+  function renderAccounting() {
+    const d = data.accounting; if(!d) return null
+    return <>
+      <SHead title="Contabilidad" sub="Desglose mensual" />
+      <Card>
+        <div style={{ fontSize:'13px', fontWeight:700, color:C.silver, marginBottom:'14px' }}>Por Mes</div>
+        {!d.monthly?.length ? <div style={{ color:C.smoke,fontSize:'13px' }}>Sin datos.</div>
+          : d.monthly.map((r:any,i:number) => (
+          <div key={i} style={{ display:'flex', gap:'16px', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.03)', flexWrap:'wrap' }}>
+            <div style={{ fontSize:'12px', color:C.smoke, minWidth:'80px' }}>{r.month}</div>
+            <div style={{ fontSize:'13px', color:C.gold, fontWeight:700 }}>{fmt$(Number(r.gross_cents))}</div>
+            <div style={{ fontSize:'12px', color:C.smoke }}>neto {fmt$(Number(r.net_cents))}</div>
+            <div style={{ fontSize:'11px', color:C.smoke }}>{r.transactions} txn</div>
+          </div>
+        ))}
+      </Card>
+    </>
+  }
+
+  function renderMetrics() {
+    const d = data.metrics; if(!d) return null
+    return <>
+      <SHead title="Métricas" sub="Vistas y guardados" />
+      <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', marginBottom:'20px' }}>
+        <Stat label="Vistas Totales" value={String(d.totalViews||0)} />
+        <Stat label="Contactos Guardados" value={String(d.totalSaves||0)} />
+      </div>
+      <Card>
+        <div style={{ fontSize:'13px', fontWeight:700, color:C.silver, marginBottom:'12px' }}>Por País</div>
+        {d.byCountry?.map((r:any,i:number) => (
+          <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+            <span style={{ fontSize:'13px', color:C.silver }}>{r.country||'Desconocido'}</span>
+            <span style={{ fontSize:'13px', color:C.gold, fontWeight:700 }}>{r.cnt}</span>
+          </div>
+        ))}
+      </Card>
+    </>
+  }
+
+  function renderPromos() {
+    const d = data.promos
+    return <>
+      <SHead title="Códigos Promo" sub="Crea y administra descuentos" />
+      <Card style={{ marginBottom:'16px' }}>
+        <div style={{ fontSize:'13px', fontWeight:700, color:C.silver, marginBottom:'16px' }}>Nuevo Código</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:'10px', marginBottom:'14px' }}>
+          {[['code','Código','SUMMER25',true],['discountValue','Valor','20',false],['maxUses','Máx. usos','ilimitado',false]].map(([k,l,p,up]:[any,any,any,any]) => (
+            <div key={k}>
+              <div style={{ fontSize:'10px', color:C.smoke, marginBottom:'5px', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>{l}</div>
+              <input value={(newPromo as any)[k]} onChange={e=>setNewPromo(pr=>({...pr,[k]:up?e.target.value.toUpperCase():e.target.value}))} placeholder={p}
+                style={{ width:'100%', padding:'9px 12px', background:C.g, boxShadow:insetSm, border:'1px solid rgba(255,255,255,0.04)', borderRadius:'10px', color:C.silver, fontSize:'13px', fontFamily:"'DM Sans',sans-serif", outline:'none' }}/>
+            </div>
+          ))}
+          {[['discountType','Tipo',[['percent','Porcentaje %'],['fixed','Fijo $'],['free','Gratis']]],['appliesTo','Aplica a',[['both','Ambos'],['new_card','Tarjeta nueva'],['renewal','Renovación']]]].map(([k,l,opts]:[any,any,any]) => (
+            <div key={k}>
+              <div style={{ fontSize:'10px', color:C.smoke, marginBottom:'5px', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>{l}</div>
+              <select value={(newPromo as any)[k]} onChange={e=>setNewPromo(pr=>({...pr,[k]:e.target.value}))}
+                style={{ width:'100%', padding:'9px 12px', background:C.g, boxShadow:insetSm, border:'1px solid rgba(255,255,255,0.04)', borderRadius:'10px', color:C.silver, fontSize:'13px', fontFamily:"'DM Sans',sans-serif", outline:'none' }}>
+                {opts.map(([v,l2]:[string,string])=><option key={v} value={v}>{l2}</option>)}
               </select>
             </div>
-            <div>
-              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Value</label>
-              <input type="number" value={form.discountValue} onChange={e=>setForm(f=>({...f,discountValue:+e.target.value}))} style={inpSt}/>
-            </div>
-            <div>
-              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Max uses</label>
-              <input type="number" placeholder="∞" value={form.maxUses} onChange={e=>setForm(f=>({...f,maxUses:e.target.value}))} style={inpSt}/>
-            </div>
-            <div>
-              <label style={{fontSize:'10px',color:C.smoke,display:'block',marginBottom:'5px',fontWeight:600,letterSpacing:'.06em',textTransform:'uppercase'}}>Expires</label>
-              <input type="date" value={form.expiresAt} onChange={e=>setForm(f=>({...f,expiresAt:e.target.value}))} style={{...inpSt,colorScheme:'dark'}}/>
-            </div>
-            <button onClick={save} disabled={loading}
-              style={{padding:'9px 18px',borderRadius:'10px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,fontWeight:700,fontSize:'12px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",boxShadow:goldBox,whiteSpace:'nowrap',height:'38px'}}>
-              {loading?'…':editing?'Save':'+ Create'}
-            </button>
-          </div>
-          <p style={{fontSize:'11px',color:C.smoke,marginTop:'10px',opacity:.7}}>
-            Tip: <strong style={{color:C.gold}}>100% free</strong> — test users get the card without paying. Works for new cards AND renewals.
-          </p>
-        </Panel>
-      </div>
+          ))}
+        </div>
 
-      <Panel title={`Promo codes (${data.promos?.length||0})`}>
-        <Tbl heads={['Code','Discount','Uses','Applies To','Expires','Status','Actions']}
-          rows={(data.promos||[]).map((p:any,i:number)=>[
-            <span key={`code-${i}`} style={{fontFamily:'monospace',fontWeight:700,color:C.gold,fontSize:'13px'}}>{p.code}</span>,
-            `${val(p)}${typ(p)==='percent'?'%':typ(p)==='free'?' free':'$'} off`,
-            `${uses(p)}${maxU(p)?` / ${maxU(p)}`:''}`,
-            appTo(p)||'both',
-            exp(p)?new Date(exp(p)).toLocaleDateString():<span key={`exp-${i}`} style={{color:C.smoke,opacity:.5}}>No expiry</span>,
-            <Bdg key={`bdg-${i}`} t={isActive(p)?'Active':'Off'} type={isActive(p)?'green':'gray'}/>,
-            <div key={`act-${i}`} style={{display:'flex',gap:'4px'}}>
-              <button onClick={()=>startEdit(p)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow: editing?.id===p.id ? insetSm : raisedSm,border: editing?.id===p.id ? '1px solid rgba(212,168,79,0.2)' : '1px solid rgba(255,255,255,0.04)',color: editing?.id===p.id ? C.gold : C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Edit</button>
-              <button onClick={()=>toggleActive(p.id,isActive(p))} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:`1px solid ${isActive(p)?'rgba(239,68,68,0.15)':'rgba(74,222,128,0.15)'}`,color:isActive(p)?'#ef4444':'#4ade80',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{isActive(p)?'Disable':'Enable'}</button>
-              <button onClick={()=>del(p.id,p.code)} style={{padding:'4px 10px',borderRadius:'8px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(239,68,68,0.2)',color:'#ef4444',fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>✕</button>
-            </div>,
-          ])}/>
-      </Panel>
+        {/* Phone Bypass toggle */}
+        <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 14px', background:'rgba(255,255,255,0.02)', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.04)', marginBottom:'14px' }}>
+          <button onClick={()=>setNewPromo(p=>({...p,phoneBypass:!p.phoneBypass}))}
+            style={{ width:'40px', height:'22px', borderRadius:'11px', border:'none', cursor:'pointer', background:newPromo.phoneBypass?`linear-gradient(135deg,${C.gold},${C.goldLt})`:C.g, boxShadow:newPromo.phoneBypass?`0 0 10px rgba(212,168,79,0.3)`:insetSm, position:'relative', flexShrink:0, transition:'all .2s' }}>
+            <div style={{ width:'16px', height:'16px', borderRadius:'50%', background:newPromo.phoneBypass?C.carbon:C.smoke, position:'absolute', top:'3px', left:newPromo.phoneBypass?'21px':'3px', transition:'left .2s' }}/>
+          </button>
+          <div>
+            <div style={{ fontSize:'12px', fontWeight:700, color:newPromo.phoneBypass?C.gold:C.silver }}>Phone Bypass — {newPromo.phoneBypass?'ON':'OFF'}</div>
+            <div style={{ fontSize:'11px', color:C.smoke }}>Oculta el campo de teléfono para los usuarios que usen este código</div>
+          </div>
+        </div>
+
+        <button onClick={createPromo}
+          style={{ padding:'11px 24px', background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`, color:C.carbon, borderRadius:'12px', fontWeight:700, fontSize:'13px', border:'none', cursor:'pointer', boxShadow:goldBox, fontFamily:"'DM Sans',sans-serif" }}>
+          + Crear Código
+        </button>
+      </Card>
+
+      <Card>
+        <div style={{ fontSize:'13px', fontWeight:700, color:C.silver, marginBottom:'14px' }}>Códigos Existentes</div>
+        {!d ? <div style={{ color:C.smoke,fontSize:'13px' }}>Cargando…</div>
+          : !d.promos?.length ? <div style={{ color:C.smoke,fontSize:'13px' }}>Sin códigos aún.</div>
+          : d.promos.map((p:any) => (
+          <div key={p.id} style={{ padding:'14px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+            {editPromo?.id===p.id ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                  <input value={editPromo.discountValue} onChange={e=>setEditPromo((x:any)=>({...x,discountValue:e.target.value}))} placeholder="Valor"
+                    style={{ padding:'8px 10px', background:C.g, boxShadow:insetSm, border:'1px solid rgba(255,255,255,0.04)', borderRadius:'8px', color:C.silver, fontSize:'12px', fontFamily:"'DM Sans',sans-serif", outline:'none' }}/>
+                  <input value={editPromo.maxUses||''} onChange={e=>setEditPromo((x:any)=>({...x,maxUses:e.target.value}))} placeholder="Máx. usos"
+                    style={{ padding:'8px 10px', background:C.g, boxShadow:insetSm, border:'1px solid rgba(255,255,255,0.04)', borderRadius:'8px', color:C.silver, fontSize:'12px', fontFamily:"'DM Sans',sans-serif", outline:'none' }}/>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                  <button onClick={()=>setEditPromo((x:any)=>({...x,phoneBypass:!x.phoneBypass}))}
+                    style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor:'pointer', background:editPromo.phoneBypass?`linear-gradient(135deg,${C.gold},${C.goldLt})`:C.g, boxShadow:editPromo.phoneBypass?`0 0 8px rgba(212,168,79,0.3)`:insetSm, position:'relative', flexShrink:0, transition:'all .2s' }}>
+                    <div style={{ width:'14px', height:'14px', borderRadius:'50%', background:editPromo.phoneBypass?C.carbon:C.smoke, position:'absolute', top:'3px', left:editPromo.phoneBypass?'19px':'3px', transition:'left .2s' }}/>
+                  </button>
+                  <span style={{ fontSize:'11px', color:editPromo.phoneBypass?C.gold:C.smoke }}>Phone Bypass</span>
+                </div>
+                <div style={{ display:'flex', gap:'8px' }}>
+                  <button onClick={saveEdit} style={{ padding:'8px 16px', background:`linear-gradient(135deg,${C.gold},${C.goldLt})`, color:C.carbon, borderRadius:'8px', fontWeight:700, fontSize:'12px', border:'none', cursor:'pointer' }}>Guardar</button>
+                  <button onClick={()=>setEditPromo(null)} style={{ padding:'8px 16px', background:C.g, boxShadow:raisedSm, color:C.smoke, borderRadius:'8px', fontSize:'12px', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap' }}>
+                    <span style={{ fontWeight:800, color:C.gold, fontSize:'14px', letterSpacing:'0.06em' }}>{p.code}</span>
+                    {p.phoneBypass&&<span style={{ fontSize:'10px', background:'rgba(212,168,79,0.1)', color:C.gold, padding:'2px 7px', borderRadius:'5px', fontWeight:700 }}>📵 PHONE BYPASS</span>}
+                    <span style={{ fontSize:'10px', background:p.isActive?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)', color:p.isActive?C.green:C.red, padding:'2px 7px', borderRadius:'5px', fontWeight:700 }}>{p.isActive?'ACTIVO':'INACTIVO'}</span>
+                  </div>
+                  <div style={{ fontSize:'11px', color:C.smoke }}>
+                    {p.discountType==='percent'?`${p.discountValue}%`:p.discountType==='fixed'?`$${(p.discountValue/100).toFixed(2)}`:'Gratis'} · {p.appliesTo}
+                    {p.maxUses?` · ${p.usesCount}/${p.maxUses} usos`:''}
+                    {p.expiresAt?` · expira ${fmtDate(p.expiresAt)}`:''}
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:'7px', flexShrink:0 }}>
+                  <button onClick={()=>setEditPromo({...p})} style={{ padding:'7px 12px', background:C.g, boxShadow:raisedSm, color:C.smoke, borderRadius:'8px', fontSize:'11px', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>Editar</button>
+                  <button onClick={()=>togglePromo(p.id,!p.isActive)} style={{ padding:'7px 12px', background:C.g, boxShadow:raisedSm, color:p.isActive?C.red:C.green, borderRadius:'8px', fontSize:'11px', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>{p.isActive?'Desactivar':'Activar'}</button>
+                  <button onClick={()=>deletePromo(p.id)} style={{ padding:'7px 12px', background:C.g, boxShadow:raisedSm, color:C.red, borderRadius:'8px', fontSize:'11px', border:'none', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>Eliminar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+    </>
+  }
+
+  function renderBusiness() {
+    return <>
+      <SHead title="Business Rules" sub="Control del comportamiento de la plataforma sin tocar código" />
+      <Card style={{ marginBottom:'16px' }}><PhoneModeToggle /></Card>
+      <Card>
+        <div style={{ display:'flex', alignItems:'center', gap:'10px', opacity:.45 }}>
+          <span style={{ fontSize:'20px' }}>🔮</span>
+          <div>
+            <div style={{ fontSize:'13px', fontWeight:700, color:C.silver }}>Más reglas próximamente</div>
+            <div style={{ fontSize:'12px', color:C.smoke }}>Rate limiting, geo-blocking, sistema de referidos, Virtual Phone API — Handoff 03+</div>
+          </div>
+        </div>
+      </Card>
+    </>
+  }
+
+  function renderSecurity() {
+    const d = data.security; if(!d) return null
+    return <>
+      <SHead title="Seguridad" sub="Log de acceso al admin" />
+      <Card>
+        {!d.logs?.length ? <div style={{ color:C.smoke,fontSize:'13px' }}>Sin eventos.</div>
+          : d.logs.map((l:any,i:number) => (
+          <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+            <div>
+              <div style={{ fontSize:'13px', color:l.event==='login_success'?C.green:l.event?.includes('fail')?C.red:C.silver, fontWeight:600 }}>{l.event}</div>
+              <div style={{ fontSize:'11px', color:C.smoke }}>{l.ip} · {fmtDate(l.created_at)}</div>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </>
+  }
+
+  const RENDER:Record<Section,()=>React.ReactNode> = { overview:renderOverview, clients:renderClients, orders:renderOrders, accounting:renderAccounting, metrics:renderMetrics, promos:renderPromos, business:renderBusiness, security:renderSecurity }
+
+  return (
+    <div style={{ minHeight:'100dvh', background:C.g, fontFamily:"'DM Sans',sans-serif", display:'flex' }}>
+      <aside style={{ width:'220px', flexShrink:0, background:C.g, boxShadow:`4px 0 20px ${C.nd}`, borderRight:'1px solid rgba(255,255,255,0.03)', display:'flex', flexDirection:'column', padding:'28px 16px' }}>
+        <div style={{ padding:'12px 16px', background:C.g, boxShadow:raised, borderRadius:'14px', marginBottom:'28px', border:'1px solid rgba(212,168,79,0.07)' }}>
+          <img src="/logo.png" alt="Vynk" style={{ height:'28px', objectFit:'contain', display:'block' }}/>
+        </div>
+        <div style={{ fontSize:'9px', color:C.smoke, fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', marginBottom:'10px', paddingLeft:'8px' }}>Admin Panel</div>
+        <nav style={{ display:'flex', flexDirection:'column', gap:'4px', flex:1 }}>
+          {NAV.map(n => (
+            <button key={n.key} onClick={()=>setActive(n.key)}
+              style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', borderRadius:'12px', background:active===n.key?C.g:'transparent', boxShadow:active===n.key?insetSm:'none', border:active===n.key?'1px solid rgba(212,168,79,0.1)':'1px solid transparent', color:active===n.key?C.gold:C.smoke, fontSize:'13px', fontWeight:active===n.key?700:400, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", textAlign:'left', transition:'all .15s' }}>
+              <span style={{ fontSize:'15px' }}>{n.icon}</span>{n.label}
+            </button>
+          ))}
+        </nav>
+        <button onClick={logout}
+          style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px', borderRadius:'12px', background:'transparent', border:'1px solid rgba(239,68,68,0.15)', color:'rgba(239,68,68,0.7)', fontSize:'12px', cursor:'pointer', fontFamily:"'DM Sans',sans-serif", marginTop:'8px' }}>
+          🚪 Cerrar sesión
+        </button>
+      </aside>
+      <main style={{ flex:1, padding:'36px 32px', overflowY:'auto', minWidth:0 }}>
+        {loading
+          ? <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'200px', color:C.smoke, fontSize:'14px' }}>Cargando…</div>
+          : RENDER[active]?.()
+        }
+      </main>
     </div>
   )
 }
