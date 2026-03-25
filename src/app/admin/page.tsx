@@ -549,7 +549,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexShrink: 0 }}>
-                      <NmBtn onClick={() => setEditPromo({ ...p, discountValue: String(p.discountValue || 0), maxUses: p.maxUses ? String(p.maxUses) : '', phoneBypass: Boolean(p.phoneBypass || p.phone_bypass), expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString().split('T')[0] : '' })}>Editar</NmBtn>
+                      <NmBtn onClick={() => setEditPromo({ ...p, discountValue: String(p.discountValue || 0), maxUses: p.maxUses ? String(p.maxUses) : '', phoneBypass: !!(p.phoneBypass || p.phone_bypass), expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString().split('T')[0] : '' })}>Editar</NmBtn>
                       <NmBtn onClick={() => togglePromo(p.id, !p.isActive)} variant={p.isActive ? 'danger' : 'default'} style={{ color: p.isActive ? C.red : C.green }}>{p.isActive ? 'Desactivar' : 'Activar'}</NmBtn>
                       <NmBtn onClick={() => deletePromo(p.id)} variant="danger">Eliminar</NmBtn>
                     </div>
@@ -613,7 +613,7 @@ export default function AdminDashboard() {
                 padding: '10px 14px', borderRadius: '12px',
                 // neumorfismo: raised cuando inactivo, inset cuando activo
                 background: C.g,
-                boxShadow: active === n.key ? insetSm : raisedSm,
+                boxShadow: active === n.key ? insetSm : raised,
                 border: active === n.key ? '1px solid rgba(212,168,79,0.1)' : '1px solid rgba(255,255,255,0.02)',
                 color: active === n.key ? C.gold : C.smoke,
                 fontSize: '13px', fontWeight: active === n.key ? 700 : 400,
