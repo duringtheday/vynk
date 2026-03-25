@@ -450,8 +450,17 @@ export default function BuilderPage() {
   const logoRef  = useRef<HTMLInputElement>(null)
   const cardRef  = useRef<HTMLDivElement>(null)
 
-  // ── i18n state ───────────────────────────────────────────────
+  // ── i18n state — persisted in localStorage ──────────────────
   const [lang, setLang] = useState<'en'|'es'>('en')
+  useEffect(()=>{
+    const saved = localStorage.getItem('vynk_lang') as 'en'|'es'|null
+    if(saved==='en'||saved==='es') setLang(saved)
+  },[])
+  function toggleLang() {
+    const next = lang==='en' ? 'es' : 'en'
+    setLang(next)
+    localStorage.setItem('vynk_lang', next)
+  }
   const t = T[lang]
 
   const [form, setForm]               = useState<Form>(INIT_FORM)
@@ -635,9 +644,27 @@ export default function BuilderPage() {
   const fontCss     = (FONTS.find((f:any)=>f.id===design.font)||FONTS[0]||{css:"'DM Sans',sans-serif"}).css
   const initials    = form.fullName.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()||'YN'
   const svgOverlay  = tpl?.svg ? `url("data:image/svg+xml;utf8,${encodeURIComponent(tpl.svg)}")` : 'none'
-  const isDragging  = dragging.current !== null
 
-  const tabBtn = (id:'front'|'back'|'design', label:string) => (
+  // ── Card canvas pan (move card in canvas) ───────────────────
+  const [cardOffset, setCardOffset] = useState<Pos>({x:0,y:0})
+  const canvasDrag = useRef<{mx:number;my:number;ox:number;oy:number}|null>(null)
+  function startCanvasDrag(e:React.MouseEvent) {
+    if(dragging.current) return // don't conflict with photo/logo drag
+    e.preventDefault()
+    canvasDrag.current = {mx:e.clientX,my:e.clientY,ox:cardOffset.x,oy:cardOffset.y}
+  }
+  useEffect(()=>{
+    function onMove(e:MouseEvent) {
+      if(!canvasDrag.current) return
+      const dx = e.clientX - canvasDrag.current.mx
+      const dy = e.clientY - canvasDrag.current.my
+      setCardOffset({x:canvasDrag.current.ox+dx, y:canvasDrag.current.oy+dy})
+    }
+    function onUp() { canvasDrag.current=null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return ()=>{ window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp) }
+  },[])
     <button onClick={()=>setActiveTab(id)} style={{flex:1,padding:'9px',borderRadius:'10px',border:'none',background:activeTab===id?`rgba(212,168,79,0.1)`:C.g,boxShadow:activeTab===id?insetSm:raisedSm,color:activeTab===id?C.gold:C.smoke,fontSize:'12px',fontWeight:activeTab===id?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s',borderBottom:activeTab===id?`1px solid rgba(212,168,79,0.2)`:'1px solid transparent'}}>
       {label}
     </button>
@@ -646,43 +673,40 @@ export default function BuilderPage() {
   // ── FIX #2 & #3: Photo/Logo controls with numeric inputs + inner-pan ──
   function PhotoControls({ compact=false }:{ compact?:boolean }) {
     const s = compact ? {fontSize:'8px'} : {fontSize:'9px'}
-    const sliderRow = (label:string, val:number, min:number, max:number, step:number, set:(v:number)=>void) => (
+    const sliderRow = (label:string, val:number, min:number, max:number, step:number, setter:(v:number)=>void) => (
       <div>
-        <div style={{...s,color:C.smoke,marginBottom:'2px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <span>{label}: {val.toFixed(val<10?1:0)}{label.includes('otate')||label.includes('otar')?'°':'×'}</span>
-          {/* FIX #3: Numeric input */}
-          <input type="number" value={val} min={min} max={max} step={step}
-            onChange={e=>set(Math.max(min,Math.min(max,Number(e.target.value))))}
-            style={{width:'48px',padding:'1px 4px',background:C.g,border:'1px solid rgba(255,255,255,0.06)',borderRadius:'5px',color:C.silver,fontSize:'9px',outline:'none',textAlign:'center'}}/>
+        <div style={{fontSize:compact?'8px':'9px',color:C.smoke,marginBottom:'2px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'4px'}}>
+          <span style={{flexShrink:0}}>{label}</span>
+          <input type="number" value={Number(val.toFixed(2))} min={min} max={max} step={step}
+            onChange={e=>setter(Math.max(min,Math.min(max,Number(e.target.value))))}
+            style={{width:'44px',padding:'1px 4px',background:C.g,border:'1px solid rgba(255,255,255,0.08)',borderRadius:'5px',color:C.silver,fontSize:'9px',outline:'none',textAlign:'center',flexShrink:0}}/>
         </div>
         <input type="range" min={min} max={max} step={step} value={val}
-          onChange={e=>set(Number(e.target.value))}
-          style={{width:'100%',accentColor:C.gold,cursor:'pointer'}}/>
+          onChange={e=>setter(Number(e.target.value))}
+          style={{width:'100%',accentColor:C.gold,cursor:'pointer',touchAction:'none'}}/>
       </div>
     )
     return (
       <div style={{display:'flex',flexDirection:'column',gap:'6px',padding:'10px',background:'rgba(255,255,255,0.02)',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.04)'}}>
-        {/* Frame selector */}
-        {!compact&&(
-          <div>
-            <div style={{fontSize:'9px',color:C.smoke,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'5px'}}>{t.photoFrame}</div>
-            <div style={{display:'flex',gap:'5px'}}>
-              {PHOTO_FRAMES.map(f=>(
-                <button key={f.id} onClick={()=>setPhotoFrame(f.id)} title={f.label}
-                  style={{width:'28px',height:'28px',cursor:'pointer',border:`2px solid ${photoFrame===f.id?C.gold:'rgba(255,255,255,0.06)'}`,background:photoFrame===f.id?`rgba(212,168,79,0.1)`:C.g,boxShadow:photoFrame===f.id?insetSm:raisedSm,...f.style,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}>
-                  <div style={{width:'10px',height:'10px',background:photoFrame===f.id?C.gold:C.smoke,...f.style}}/>
-                </button>
-              ))}
-            </div>
+        {/* Frame selector — always visible */}
+        <div>
+          <div style={{fontSize:'9px',color:C.smoke,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'5px'}}>{t.photoFrame}</div>
+          <div style={{display:'flex',gap:'4px',flexWrap:'nowrap'}}>
+            {PHOTO_FRAMES.map(f=>(
+              <button key={f.id} onClick={()=>setPhotoFrame(f.id)} title={f.label}
+                style={{flex:1,height:compact?'24px':'28px',cursor:'pointer',border:`2px solid ${photoFrame===f.id?C.gold:'rgba(255,255,255,0.08)'}`,background:photoFrame===f.id?`rgba(212,168,79,0.15)`:C.g,boxShadow:photoFrame===f.id?insetSm:raisedSm,...f.style,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s',minWidth:0}}>
+                <div style={{width:'8px',height:'8px',background:photoFrame===f.id?C.gold:'rgba(255,255,255,0.3)',...f.style,flexShrink:0}}/>
+              </button>
+            ))}
           </div>
-        )}
+        </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
           {form.photoUrl&&<>
-            {sliderRow(t.photoScale, photoScale, 0.3, 3, 0.05, setPhotoScale)}
+            {sliderRow(t.photoScale, photoScale, 0.3, 3, 0.01, setPhotoScale)}
             {sliderRow(t.photoRotate, photoRotate, -180, 180, 1, setPhotoRotate)}
           </>}
           {form.logoUrl&&<>
-            {sliderRow(t.logoScale, logoScale, 0.3, 3, 0.05, setLogoScale)}
+            {sliderRow(t.logoScale, logoScale, 0.3, 3, 0.01, setLogoScale)}
             {sliderRow(t.logoRotate, logoRotate, -180, 180, 1, setLogoRotate)}
           </>}
         </div>
@@ -712,51 +736,53 @@ export default function BuilderPage() {
 
   // ── CARD FRONT / BACK renders (shared) ─────────────────────
   function CardFront({ radius='20px', minH='300px', pad='32px' }:{ radius?:string; minH?:string; pad?:string }) {
+    const curDragging = dragging.current
     return (
       <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',background:cardBg,borderRadius:radius,padding:pad,color:design.textColor,minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'space-between',fontFamily:fontCss,boxShadow:`0 24px 64px ${C.nd}`,position:'relative',overflow:'hidden'}}>
         {tpl?.overlay&&tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
         <div style={{position:'absolute',inset:0,backgroundImage:svgOverlay,backgroundSize:'100% 100%',pointerEvents:'none'}}/>
         <div style={{position:'absolute',inset:0,borderRadius:radius,border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,pointerEvents:'none'}}/>
 
-        {/* FIX #1: Draggable photo — mouse + touch */}
         {form.photoUrl&&(
           <div
-            onMouseDown={e=>startDrag(e,'photo')}
-            onTouchStart={e=>startDrag(e,'photo')}
+            onMouseDown={e=>{e.preventDefault();e.stopPropagation();startDrag(e,'photo')}}
+            onTouchStart={e=>{e.stopPropagation();startDrag(e,'photo')}}
             style={{
               position:'absolute',
               left:`${photoPos.x}%`,top:`${photoPos.y}%`,
               width:'64px',height:'64px',
               overflow:'hidden',
-              cursor:isDragging&&dragging.current==='photo'?'grabbing':'grab',
+              cursor:curDragging==='photo'?'grabbing':'grab',
               zIndex:10,
               ...frameShape,
               border:`2px solid ${design.accent}60`,
               boxShadow:`0 4px 16px rgba(0,0,0,0.5)`,
               transform:`scale(${photoScale}) rotate(${photoRotate}deg)`,
-              transformOrigin:'center',
+              transformOrigin:'top left',
               touchAction:'none',
+              WebkitUserSelect:'none',
+              userSelect:'none',
             }}>
-            {/* FIX #2: objectPosition for inner pan */}
-            <img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoObjPos.x}% ${photoObjPos.y}%`,userSelect:'none'}} draggable={false}/>
+            <img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoObjPos.x}% ${photoObjPos.y}%`,pointerEvents:'none'}} draggable={false}/>
           </div>
         )}
 
-        {/* FIX #1: Draggable logo — mouse + touch */}
         {form.logoUrl&&(
           <div
-            onMouseDown={e=>startDrag(e,'logo')}
-            onTouchStart={e=>startDrag(e,'logo')}
+            onMouseDown={e=>{e.preventDefault();e.stopPropagation();startDrag(e,'logo')}}
+            onTouchStart={e=>{e.stopPropagation();startDrag(e,'logo')}}
             style={{
               position:'absolute',
               left:`${logoPos.x}%`,top:`${logoPos.y}%`,
-              cursor:isDragging&&dragging.current==='logo'?'grabbing':'grab',
+              cursor:curDragging==='logo'?'grabbing':'grab',
               zIndex:10,
               transform:`scale(${logoScale}) rotate(${logoRotate}deg)`,
-              transformOrigin:'center',
+              transformOrigin:'top left',
               touchAction:'none',
+              WebkitUserSelect:'none',
+              userSelect:'none',
             }}>
-            <img src={form.logoUrl} alt="logo" style={{height:'30px',objectFit:'contain',filter:`drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,userSelect:'none'}} draggable={false}/>
+            <img src={form.logoUrl} alt="logo" style={{height:'30px',objectFit:'contain',filter:`drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,pointerEvents:'none'}} draggable={false}/>
           </div>
         )}
 
@@ -780,7 +806,7 @@ export default function BuilderPage() {
 
   function CardBack({ radius='20px', minH='300px', pad='32px' }:{ radius?:string; minH?:string; pad?:string }) {
     return (
-      <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',position:'absolute',top:0,left:0,right:0,bottom:0,background:cardBg,borderRadius:radius,padding:pad,color:design.textColor,minHeight:minH,display:'flex',flexDirection:'column',gap:'14px',fontFamily:fontCss,filter:'brightness(0.85)',overflow:'hidden'}}>
+      <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',position:'absolute',top:0,left:0,right:0,bottom:0,background:cardBg,borderRadius:radius,padding:pad,color:design.textColor,minHeight:minH,height:'100%',display:'flex',flexDirection:'column',gap:'14px',fontFamily:fontCss,filter:'brightness(0.85)',overflow:'hidden'}}>
         {tpl?.overlay&&tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
         <div style={{position:'absolute',inset:0,backgroundImage:svgOverlay,backgroundSize:'100% 100%',pointerEvents:'none'}}/>
         <div style={{position:'absolute',inset:0,borderRadius:radius,border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,pointerEvents:'none'}}/>
@@ -822,9 +848,9 @@ export default function BuilderPage() {
   // ── LANG TOGGLE button ──────────────────────────────────────
   function LangBtn({ style={} }:{ style?: React.CSSProperties }) {
     return (
-      <button onClick={()=>setLang(l=>l==='en'?'es':'en')}
+      <button onClick={toggleLang}
         style={{padding:'6px 12px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(212,168,79,0.15)',borderRadius:'8px',color:C.gold,fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",letterSpacing:'.05em',...style}}>
-        {t.lang}
+        {lang==='en'?'ES':'EN'}
       </button>
     )
   }
@@ -902,9 +928,9 @@ export default function BuilderPage() {
         <button onClick={()=>setSidebarOpen(v=>!v)} style={{position:'absolute',left:'6px',top:'50%',transform:'translateY(-50%)',zIndex:10,width:'24px',height:'44px',borderRadius:'7px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'13px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',touchAction:'manipulation'}}>
           {sidebarOpen?'‹':'›'}
         </button>
-        <div style={{background:C.g,boxShadow:`8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`,borderRadius:'16px',padding:'8px',border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,height:'calc(100dvh - 16px)',aspectRatio:'1.6/1',position:'relative'}}>
-          <div style={{perspective:'800px',height:'100%'}}>
-            <div ref={cardRef} onClick={()=>!isDragging&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:isDragging?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',height:'100%',borderRadius:'12px',userSelect:'none'}}>
+        <div style={{background:C.g,boxShadow:`8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`,borderRadius:'16px',padding:'8px',border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,maxHeight:'calc(100dvh - 32px)',maxWidth:'calc(100vw - 280px)',aspectRatio:'1.586/1',position:'relative',display:'flex',alignItems:'stretch'}}>
+          <div style={{perspective:'800px',flex:1}}>
+            <div ref={cardRef} onClick={()=>!dragging.current&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:dragging.current?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',height:'100%',width:'100%',borderRadius:'12px',userSelect:'none'}}>
               <CardFront radius="12px" minH="0" pad="16px"/>
               <CardBack  radius="12px" minH="0" pad="16px"/>
             </div>
@@ -960,7 +986,7 @@ export default function BuilderPage() {
         <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 80% 80% at 50% 50%, ${tpl?.glow||'rgba(212,168,79,0.1)'} 0%, transparent 70%)`,pointerEvents:'none'}}/>
         <div style={{background:C.g,boxShadow:`8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`,borderRadius:'20px',padding:'10px',border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,width:'100%',maxWidth:'440px',position:'relative'}}>
           <div style={{perspective:'800px'}}>
-            <div ref={cardRef} onClick={()=>!isDragging&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:isDragging?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',borderRadius:'16px',userSelect:'none'}}>
+            <div ref={cardRef} onClick={()=>!dragging.current&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:dragging.current?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',borderRadius:'16px',userSelect:'none'}}>
               <CardFront radius="16px" minH="180px" pad="20px"/>
               <CardBack  radius="16px" minH="180px" pad="20px"/>
             </div>
@@ -1218,11 +1244,13 @@ export default function BuilderPage() {
         </aside>
 
         {/* CARD CANVAS desktop */}
-        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden'}}>
+        <div
+          onMouseDown={startCanvasDrag}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden',cursor:canvasDrag.current?'grabbing':'default'}}>
           <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 60% 80% at 50% 50%, ${tpl?.glow||'rgba(212,168,79,0.1)'} 0%, transparent 70%)`,pointerEvents:'none'}}/>
-          <div style={{background:C.g,boxShadow:`12px 12px 30px ${C.nd},-7px -7px 20px ${C.nl}`,borderRadius:'24px',padding:'12px',border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,width:'460px',maxWidth:'90%',position:'relative'}}>
+          <div style={{background:C.g,boxShadow:`12px 12px 30px ${C.nd},-7px -7px 20px ${C.nl}`,borderRadius:'24px',padding:'12px',border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,width:'460px',maxWidth:'90%',position:'relative',transform:`translate(${cardOffset.x}px,${cardOffset.y}px)`,transition:canvasDrag.current?'none':'transform .1s'}}>
             <div style={{perspective:'1200px'}}>
-              <div ref={cardRef} onClick={()=>!isDragging&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:isDragging?'none':'transform .7s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',borderRadius:'20px',userSelect:'none'}}>
+              <div ref={cardRef} onClick={()=>!dragging.current&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:dragging.current?'none':'transform .7s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',borderRadius:'20px',userSelect:'none'}}>
                 <CardFront/>
                 <CardBack/>
               </div>
@@ -1236,6 +1264,10 @@ export default function BuilderPage() {
             <div style={{background:C.g,boxShadow:insetSm,borderRadius:'10px',padding:'8px 16px',fontSize:'11px',color:C.smoke,position:'absolute',bottom:'20px',left:'50%',transform:'translateX(-50%)',whiteSpace:'nowrap'}}>
               {t.active} <span style={{color:C.gold}}>/c/{existingCard.slug}</span>
             </div>
+          )}
+          {/* Reset card position button */}
+          {(cardOffset.x!==0||cardOffset.y!==0)&&(
+            <button onClick={()=>setCardOffset({x:0,y:0})} style={{position:'absolute',top:'12px',right:'12px',padding:'5px 10px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.06)',borderRadius:'8px',color:C.smoke,fontSize:'10px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>⌖ center</button>
           )}
         </div>
       </div>

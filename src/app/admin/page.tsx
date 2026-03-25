@@ -602,7 +602,7 @@ export default function AdminDashboard() {
       {/* SIDEBAR */}
       <aside style={{ width: '220px', flexShrink: 0, background: C.g, boxShadow: `4px 0 20px ${C.nd}`, borderRight: '1px solid rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', padding: '28px 16px' }}>
         <div style={{ padding: '12px 16px', background: C.g, boxShadow: raised, borderRadius: '14px', marginBottom: '28px', border: '1px solid rgba(212,168,79,0.07)' }}>
-          <img src="/logo.png" alt="Vynk" style={{ height: '28px', objectFit: 'contain', display: 'block' }} />
+          <img src="/logo.png" alt="Vynk" style={{ height: '28px', display: 'block' }} />
         </div>
         <div style={{ fontSize: '9px', color: C.smoke, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '10px', paddingLeft: '8px' }}>Admin Panel</div>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
