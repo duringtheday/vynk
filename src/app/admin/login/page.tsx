@@ -1,6 +1,6 @@
 'use client'
 // src/app/admin/login/page.tsx
-// FIX #7: logo más grande y visible
+// FIX: logo 20% smaller (144px vs 180px), maxWidth constraint prevents overflow
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -62,9 +62,9 @@ export default function AdminLogin() {
   return (
     <div style={{ minHeight:'100dvh', background:C.g, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:"'DM Sans',sans-serif" }}>
 
-      {/* FIX #7 — Logo más grande: aumentado de 130px a 180px, padding más generoso */}
-      <div style={{ marginBottom:'32px', padding:'22px 36px', background:C.g, boxShadow:raised, borderRadius:'24px', border:'1px solid rgba(212,168,79,0.07)', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
-        <img src="/logo.png" alt="Vynk" style={{ width:'180px', height:'auto', display:'block' }}/>
+      {/* Logo — 144px (20% smaller than previous 180px), bounded to viewport width */}
+      <div style={{ marginBottom:'28px', padding:'16px 28px', background:C.g, boxShadow:raised, borderRadius:'20px', border:'1px solid rgba(212,168,79,0.07)', display:'inline-flex', alignItems:'center', justifyContent:'center', maxWidth:'calc(100vw - 48px)', boxSizing:'border-box' }}>
+        <img src="/logo.png" alt="Vynk" style={{ width:'144px', maxWidth:'100%', height:'auto', display:'block' }}/>
       </div>
 
       {/* Main card */}
