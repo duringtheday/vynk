@@ -1,3 +1,7 @@
+// src/app/api/admin/dashboard/route.ts
+// FIX #5: POST/PATCH now save phoneBypass correctly
+//         PATCH action='regen' regenerates a promo code keeping all data
+
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { decodeSession, isValid } from '@/lib/admin-auth'
@@ -31,10 +35,10 @@ export async function GET(req: NextRequest) {
       const [userCount] = await db.select({ n: count() }).from(users)
       const recent = await db.select().from(payments).orderBy(desc(payments.createdAt)).limit(10)
       return NextResponse.json({
-        todayCents: Number(todayRow?.cents||0),
-        totalCents: Number(totalRow?.cents||0),
-        activeCards: Number(cardCount?.n||0),
-        totalUsers: Number(userCount?.n||0),
+        todayCents:    Number(todayRow?.cents||0),
+        totalCents:    Number(totalRow?.cents||0),
+        activeCards:   Number(cardCount?.n||0),
+        totalUsers:    Number(userCount?.n||0),
         recentPayments: recent,
       })
     }
@@ -107,12 +111,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   try {
     const [promo] = await db.insert(promoCodes).values({
-      code: body.code.toUpperCase(),
-      discountType: body.discountType,
-      discountValue: Number(body.discountValue)||0,
-      appliesTo: body.appliesTo||'both',
-      maxUses: body.maxUses ? Number(body.maxUses) : null,
-      isActive: true,
+      code:          body.code.toUpperCase(),
+      discountType:  body.discountType,
+      discountValue: Number(body.discountValue) || 0,
+      appliesTo:     body.appliesTo || 'both',
+      maxUses:       body.maxUses ? Number(body.maxUses) : null,
+      isActive:      true,
+      phoneBypass:   body.phoneBypass === true,   // FIX #5: save phoneBypass
     }).returning()
     return NextResponse.json({ promo })
   } catch (e: any) {
@@ -123,18 +128,40 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   if (!await checkAuth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
-  if (body.action === 'update') {
-    await db.update(promoCodes).set({
-      discountType: body.discountType,
-      discountValue: Number(body.discountValue)||0,
-      appliesTo: body.appliesTo||'both',
-      maxUses: body.maxUses ? Number(body.maxUses) : null,
-      expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
-    }).where(eq(promoCodes.id, body.id))
-  } else {
-    await db.update(promoCodes).set({ isActive: body.isActive }).where(eq(promoCodes.id, body.id))
+
+  try {
+    // FIX #5: action='regen' → regenerate code string, keep everything else intact
+    if (body.action === 'regen') {
+      const newCode = body.newCode?.toUpperCase()
+      if (!newCode) return NextResponse.json({ error: 'newCode required' }, { status: 400 })
+      const [updated] = await db.update(promoCodes)
+        .set({ code: newCode })
+        .where(eq(promoCodes.id, body.id))
+        .returning()
+      return NextResponse.json({ ok: true, promo: updated })
+    }
+
+    // FIX #5: action='update' now includes phoneBypass
+    if (body.action === 'update') {
+      await db.update(promoCodes).set({
+        discountType:  body.discountType,
+        discountValue: Number(body.discountValue) || 0,
+        appliesTo:     body.appliesTo || 'both',
+        maxUses:       body.maxUses ? Number(body.maxUses) : null,
+        expiresAt:     body.expiresAt ? new Date(body.expiresAt) : null,
+        phoneBypass:   body.phoneBypass === true,  // FIX #5: save phoneBypass on update
+      }).where(eq(promoCodes.id, body.id))
+      return NextResponse.json({ ok: true })
+    }
+
+    // Toggle isActive
+    await db.update(promoCodes)
+      .set({ isActive: body.isActive })
+      .where(eq(promoCodes.id, body.id))
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
-  return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: NextRequest) {
