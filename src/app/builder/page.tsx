@@ -665,6 +665,8 @@ export default function BuilderPage() {
     window.addEventListener('mouseup', onUp)
     return ()=>{ window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp) }
   },[])
+
+  const tabBtn = (id:'front'|'back'|'design', label:string) => (
     <button onClick={()=>setActiveTab(id)} style={{flex:1,padding:'9px',borderRadius:'10px',border:'none',background:activeTab===id?`rgba(212,168,79,0.1)`:C.g,boxShadow:activeTab===id?insetSm:raisedSm,color:activeTab===id?C.gold:C.smoke,fontSize:'12px',fontWeight:activeTab===id?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",transition:'all .15s',borderBottom:activeTab===id?`1px solid rgba(212,168,79,0.2)`:'1px solid transparent'}}>
       {label}
     </button>
