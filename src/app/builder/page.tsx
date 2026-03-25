@@ -516,12 +516,14 @@ export default function BuilderPage() {
   const sheetDragRef = useRef<{startY:number;startH:number}|null>(null)
 
   function onSheetDragStart(e:React.TouchEvent) {
+    e.stopPropagation()
     sheetDragRef.current = {startY: e.touches[0].clientY, startH: sheetH}
   }
   function onSheetDragMove(e:React.TouchEvent) {
     if(!sheetDragRef.current) return
+    e.preventDefault()
     const dy = sheetDragRef.current.startY - e.touches[0].clientY
-    const nh = Math.max(80, Math.min(window.innerHeight * 0.85, sheetDragRef.current.startH + dy))
+    const nh = Math.max(80, Math.min(window.innerHeight * 0.88, sheetDragRef.current.startH + dy))
     setSheetH(nh)
   }
   function onSheetDragEnd() { sheetDragRef.current = null }
@@ -534,6 +536,114 @@ export default function BuilderPage() {
   ] as const
 
   // ── MOBILE LAYOUT ──────────────────────────────────────────────
+  // LANDSCAPE MOBILE
+  if (isMobile && isLandscape) return (
+    <div style={{height:'100dvh',width:'100vw',background:C.g,display:'flex',flexDirection:'row',fontFamily:"'DM Sans',sans-serif",overflow:'hidden'}}>
+      {showWarning&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(5,6,7,0.9)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}>
+          <div style={{background:C.g,borderRadius:'20px',padding:'20px',width:'100%',maxWidth:'320px',border:'1px solid rgba(212,168,79,0.08)'}}>
+            <h2 style={{fontSize:'13px',fontWeight:700,marginBottom:'6px',color:C.silver}}>Identity change — $10</h2>
+            <p style={{color:C.smoke,fontSize:'11px',marginBottom:'12px'}}>Changed: <span style={{color:C.gold}}>{paidChanges.map(k=>FIELD_LABELS[k]||k).join(', ')}</span></p>
+            <div style={{display:'flex',gap:'8px'}}>
+              <button onClick={()=>{setShowWarning(false);setPaidChanges([])}} style={{flex:1,padding:'9px',background:C.g,boxShadow:raisedSm,border:'none',borderRadius:'9px',color:C.smoke,fontSize:'11px',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Cancel</button>
+              <button onClick={()=>{setShowWarning(false);submit(true)}} style={{flex:1,padding:'9px',background:`linear-gradient(135deg,${C.gold},${C.goldLt})`,color:C.carbon,borderRadius:'9px',fontSize:'11px',fontWeight:700,border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>Pay $10</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* LEFT panel — ocultable */}
+      <div style={{width:sidebarOpen?'190px':'0px',flexShrink:0,overflow:'hidden',transition:'width .2s',background:C.g,borderRight:'1px solid rgba(255,255,255,0.03)',display:'flex',flexDirection:'column'}}>
+        <div style={{width:'190px',height:'100%',display:'flex',flexDirection:'column'}}>
+          <div style={{display:'flex',gap:'3px',padding:'6px',borderBottom:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
+            {([['front','Info'],['back','Content'],['design','Design']] as const).map(([id,lbl])=>(
+              <button key={id} onClick={()=>setActiveTab(id)} style={{flex:1,padding:'5px 3px',borderRadius:'7px',border:'none',background:activeTab===id?'rgba(212,168,79,0.1)':C.g,boxShadow:activeTab===id?insetSm:raisedSm,color:activeTab===id?C.gold:C.smoke,fontSize:'9px',fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{lbl}</button>
+            ))}
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'6px',display:'flex',flexDirection:'column',gap:'5px'}}>
+            {activeTab==='front'&&(<>
+              <input style={{...nmInp,fontSize:'11px',padding:'6px 8px'}} placeholder="Full Name *" value={form.fullName} onChange={e=>set('fullName',e.target.value)}/>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px'}}>
+                <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder="Title" value={form.title} onChange={e=>set('title',e.target.value)}/>
+                <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder="Company" value={form.company} onChange={e=>set('company',e.target.value)}/>
+              </div>
+              <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder="Email" value={form.email} onChange={e=>set('email',e.target.value)}/>
+              <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder="Phone" value={form.phone} onChange={e=>set('phone',e.target.value)}/>
+            </>)}
+            {activeTab==='back'&&(<>
+              <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder="Tagline" value={form.tagline} onChange={e=>set('tagline',e.target.value)}/>
+              <textarea style={{...nmInp,fontSize:'10px',padding:'5px 7px',height:'48px',resize:'none',lineHeight:1.4}} value={form.bio} onChange={e=>set('bio',e.target.value)} placeholder="Bio..."/>
+              <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder="Services (comma sep)" value={form.services} onChange={e=>set('services',e.target.value)}/>
+            </>)}
+            {activeTab==='design'&&(<>
+              <div style={{display:'flex',gap:'2px',flexWrap:'wrap'}}>
+                {CATS.map(cat=>(<button key={cat} onClick={()=>setActiveCat(cat)} style={{padding:'2px 5px',borderRadius:'20px',border:'none',background:activeCat===cat?'rgba(212,168,79,0.12)':'rgba(255,255,255,0.04)',color:activeCat===cat?C.gold:C.smoke,fontSize:'8px',fontWeight:activeCat===cat?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>{cat}</button>))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'3px'}}>
+                {TEMPLATES.filter(t=>t.cat===activeCat).map(t=>(<button key={t.id} onClick={()=>applyTemplate(t)} style={{height:'26px',borderRadius:'6px',cursor:'pointer',background:t.mode==='gradient'?`linear-gradient(135deg,${t.bg},${t.bg2})`:t.bg,border:`2px solid ${design.template===t.id?t.accent:'rgba(255,255,255,0.06)'}`,position:'relative',overflow:'hidden'}}><div style={{position:'absolute',bottom:'2px',right:'2px',width:'3px',height:'3px',borderRadius:'50%',background:t.accent}}/></button>))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'3px'}}>
+                {FONTS.map(f=>(<button key={f.id} onClick={()=>setD('font',f.id)} style={{fontFamily:f.css,padding:'5px 2px',borderRadius:'7px',background:C.g,boxShadow:design.font===f.id?insetSm:raisedSm,border:`1px solid ${design.font===f.id?'rgba(212,168,79,0.2)':'rgba(255,255,255,0.04)'}`,color:design.font===f.id?C.gold:C.smoke,fontSize:'9px',fontWeight:600,cursor:'pointer',outline:'none'}}>{f.name}</button>))}
+              </div>
+            </>)}
+          </div>
+          <div style={{padding:'6px',borderTop:'1px solid rgba(255,255,255,0.03)',flexShrink:0}}>
+            <button onClick={()=>submit()} disabled={submitting} style={{width:'100%',padding:'9px',background:`linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`,color:C.carbon,borderRadius:'9px',fontWeight:700,fontSize:'11px',border:'none',cursor:'pointer',boxShadow:goldBox,fontFamily:"'DM Sans',sans-serif",opacity:submitting?.7:1}}>
+              {submitting?'…':existingCard?'Save':'$20'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* CANVAS */}
+      <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 60% 80% at 50% 50%, ${tpl.glow} 0%, transparent 70%)`,pointerEvents:'none'}}/>
+        {/* Toggle left */}
+        <button onClick={()=>setSidebarOpen(v=>!v)} style={{position:'absolute',left:'6px',top:'50%',transform:'translateY(-50%)',zIndex:10,width:'24px',height:'44px',borderRadius:'7px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'13px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',touchAction:'manipulation'}}>
+          {sidebarOpen?'‹':'›'}
+        </button>
+        {/* Card - ocupa el alto disponible */}
+        <div style={{background:C.g,boxShadow:`8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`,borderRadius:'16px',padding:'8px',border:`1px solid ${tpl.border}`,height:'calc(100dvh - 16px)',aspectRatio:'1.6/1',position:'relative'}}>
+          <div style={{perspective:'800px',height:'100%'}}>
+            <div ref={cardRef} onClick={()=>!dragging&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:dragging?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',height:'100%',borderRadius:'12px',userSelect:'none'}}>
+              <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',background:cardBg,borderRadius:'12px',padding:'16px',color:design.textColor,height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',fontFamily:fontCss,position:'relative',overflow:'hidden'}}>
+                {tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
+                <div style={{position:'absolute',inset:0,backgroundImage:svgOverlay,backgroundSize:'100% 100%',pointerEvents:'none'}}/>
+                <div style={{position:'absolute',inset:0,borderRadius:'12px',border:`1px solid ${tpl.border}`,pointerEvents:'none'}}/>
+                <div style={{position:'relative',zIndex:1}}>
+                  <div style={{fontSize:'7px',fontWeight:700,letterSpacing:'.12em',opacity:.3,textTransform:'uppercase',marginBottom:'10px',color:design.accent}}>VYNK</div>
+                  <div style={{fontSize:'20px',fontWeight:700,lineHeight:1.15}}>{form.fullName||'Your Name'}</div>
+                  <div style={{fontSize:'11px',opacity:.7,marginTop:'3px'}}>{[form.title,form.company].filter(Boolean).join(' · ')||'Title · Company'}</div>
+                </div>
+                {!form.photoUrl&&<div style={{position:'absolute',top:'14px',right:'14px',width:'38px',height:'38px',borderRadius:'50%',background:`${design.accent}18`,border:`2px solid ${design.accent}30`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:700,color:design.accent}}>{initials}</div>}
+                <div style={{position:'relative',zIndex:1}}>
+                  {form.email&&<div style={{fontSize:'10px',opacity:.55}}>{form.email}</div>}
+                  <div style={{marginTop:'10px',width:'50%',height:'1px',background:`linear-gradient(90deg,${design.accent}60,transparent)`}}/>
+                </div>
+              </div>
+              <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',transform:'rotateY(180deg)',position:'absolute',top:0,left:0,right:0,bottom:0,background:cardBg,borderRadius:'12px',padding:'16px',color:design.textColor,height:'100%',display:'flex',flexDirection:'column',gap:'8px',fontFamily:fontCss,filter:'brightness(0.85)',overflow:'hidden'}}>
+                {tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
+                <div style={{position:'absolute',inset:0,backgroundImage:svgOverlay,backgroundSize:'100% 100%',pointerEvents:'none'}}/>
+                <div style={{position:'relative',zIndex:1}}>
+                  <div style={{fontSize:'7px',opacity:.3,fontWeight:700,letterSpacing:'.12em',textTransform:'uppercase',marginBottom:'6px',color:design.accent}}>SERVICES</div>
+                  {form.services&&<div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{form.services.split(',').filter(Boolean).map(s=><span key={s} style={{padding:'2px 7px',borderRadius:'20px',fontSize:'9px',fontWeight:600,background:`${design.accent}18`,border:`1px solid ${design.accent}35`,color:design.accent}}>{s.trim()}</span>)}</div>}
+                  {form.bio&&<div style={{fontSize:'10px',opacity:.6,lineHeight:1.6,marginTop:'6px'}}>{form.bio}</div>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Actions right */}
+        <div style={{position:'absolute',right:'6px',top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:'5px',zIndex:10}}>
+          <button onClick={()=>setIsFlipped(f=>!f)} style={{width:'26px',height:'26px',borderRadius:'7px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(255,255,255,0.04)',color:C.smoke,fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',touchAction:'manipulation'}}>↻</button>
+          {existingCard&&<a href={`/c/${existingCard.slug}`} style={{width:'26px',height:'26px',borderRadius:'7px',background:C.g,boxShadow:raisedSm,border:'1px solid rgba(212,168,79,0.1)',color:C.gold,fontSize:'9px',textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,touchAction:'manipulation'}}>→</a>}
+        </div>
+        <div style={{position:'absolute',bottom:'4px',left:'50%',transform:'translateX(-50%)',fontSize:'8px',color:C.smoke,whiteSpace:'nowrap'}}>
+          <span style={{color:C.gold,fontWeight:700}}>{tpl.label}</span> · tap to flip
+        </div>
+      </div>
+    </div>
+  )
+
   if (isMobile) return (
     <div style={{height:'100dvh',background:C.g,display:'flex',flexDirection:'column',fontFamily:"'DM Sans',sans-serif",overflow:'hidden',position:'relative'}}>
 
@@ -652,13 +762,13 @@ export default function BuilderPage() {
         display:'flex', flexDirection:'column',
         transition: sheetDragRef.current ? 'none' : 'height .2s',
       }}>
-        {/* Drag handle */}
+        {/* Drag handle — área táctil grande para mayor sensibilidad */}
         <div
           onTouchStart={onSheetDragStart}
           onTouchMove={onSheetDragMove}
           onTouchEnd={onSheetDragEnd}
-          style={{padding:'10px 0 4px',display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',cursor:'grab',flexShrink:0}}>
-          <div style={{width:'36px',height:'4px',borderRadius:'2px',background:C.smoke,opacity:.3}}/>
+          style={{padding:'16px 0 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',cursor:'grab',flexShrink:0,touchAction:'none',minHeight:'44px',justifyContent:'center'}}>
+          <div style={{width:'48px',height:'5px',borderRadius:'3px',background:C.smoke,opacity:.45}}/>
         </div>
 
         {/* Tab bar */}
