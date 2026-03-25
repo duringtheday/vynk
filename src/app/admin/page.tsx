@@ -549,7 +549,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexShrink: 0 }}>
-                      <NmBtn onClick={() => setEditPromo({ ...p, discountValue: String(p.discountValue || 0), maxUses: p.maxUses ? String(p.maxUses) : '' })}>Editar</NmBtn>
+                      <NmBtn onClick={() => setEditPromo({ ...p, discountValue: String(p.discountValue || 0), maxUses: p.maxUses ? String(p.maxUses) : '', phoneBypass: Boolean(p.phoneBypass), expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString().split('T')[0] : '' })}>Editar</NmBtn>
                       <NmBtn onClick={() => togglePromo(p.id, !p.isActive)} variant={p.isActive ? 'danger' : 'default'} style={{ color: p.isActive ? C.red : C.green }}>{p.isActive ? 'Desactivar' : 'Activar'}</NmBtn>
                       <NmBtn onClick={() => deletePromo(p.id)} variant="danger">Eliminar</NmBtn>
                     </div>
