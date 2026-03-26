@@ -547,97 +547,190 @@ const FONTS = [
 // ── PhotoControls — outside component to prevent remount on every render ──
 interface PhotoControlsProps {
   compact?: boolean
-  photoFrame: string; setPhotoFrame: (v: string) => void
-  photoScale: number; setPhotoScale: (v: number) => void
-  photoRotate: number; setPhotoRotate: (v: number) => void
-  logoScale: number; setLogoScale: (v: number) => void
-  logoRotate: number; setLogoRotate: (v: number) => void
+  photoFrame: string
+  setPhotoFrame: Dispatch<SetStateAction<string>>
+  photoFrameScale: number
+  setPhotoFrameScale: Dispatch<SetStateAction<number>>
+  photoFrameRotate: number
+  setPhotoFrameRotate: Dispatch<SetStateAction<number>>
+  photoScale: number
+  setPhotoScale: Dispatch<SetStateAction<number>>
+  photoRotate: number
+  setPhotoRotate: Dispatch<SetStateAction<number>>
+  logoScale: number
+  setLogoScale: Dispatch<SetStateAction<number>>
+  logoRotate: number
+  setLogoRotate: Dispatch<SetStateAction<number>>
   photoObjPos: { x: number; y: number }
   setPhotoObjPos: Dispatch<SetStateAction<{ x: number; y: number }>>
-  photoInnerEdit: boolean
-  setPhotoInnerEdit: Dispatch<SetStateAction<boolean>>
-  hasPhoto: boolean; hasLogo: boolean
+  photoEditMode: 'frame' | 'content'
+  setPhotoEditMode: Dispatch<SetStateAction<'frame' | 'content'>>
+  hasPhoto: boolean
+  hasLogo: boolean
   tStr: typeof T['en']
 }
-function PhotoControls({ compact = false, photoFrame, setPhotoFrame, photoScale, setPhotoScale, photoRotate, setPhotoRotate, logoScale, setLogoScale, logoRotate, setLogoRotate, photoObjPos, setPhotoObjPos, photoInnerEdit, setPhotoInnerEdit, hasPhoto, hasLogo, tStr }: PhotoControlsProps) {
+function PhotoControls({
+  compact = false,
+  photoFrame, setPhotoFrame,
+  photoFrameScale, setPhotoFrameScale,
+  photoFrameRotate, setPhotoFrameRotate,
+  photoScale, setPhotoScale,
+  photoRotate, setPhotoRotate,
+  logoScale, setLogoScale,
+  logoRotate, setLogoRotate,
+  photoObjPos, setPhotoObjPos,
+  photoEditMode, setPhotoEditMode,
+  hasPhoto, hasLogo, tStr,
+}: PhotoControlsProps) {
   const C2 = { g: '#0D0F12', gold: '#D4A84F', silver: '#BFC3C9', smoke: '#6F737A', nd: '#08090B', nl: '#141720' }
   const inset = `inset 2px 2px 6px ${C2.nd}, inset -2px -2px 5px ${C2.nl}`
   const raised = `3px 3px 8px ${C2.nd}, -2px -2px 6px ${C2.nl}`
-  const sliderRow = (label: string, val: number, min: number, max: number, step: number, setter: (v: number) => void) => (
+
+  const sliderRow = (label: string, val: number, min: number, max: number, step: number, setter: Dispatch<SetStateAction<number>>) => (
     <div key={label}>
       <div style={{ fontSize: compact ? '8px' : '9px', color: C2.smoke, marginBottom: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
         <span style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-        <input type="number" value={Number(val.toFixed(2))} min={min} max={max} step={step}
+        <input
+          type="number"
+          value={Number(val.toFixed(2))}
+          min={min}
+          max={max}
+          step={step}
           onChange={e => setter(Math.max(min, Math.min(max, Number(e.target.value))))}
-          style={{ width: '44px', padding: '1px 4px', background: C2.g, border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', color: C2.silver, fontSize: '9px', outline: 'none', textAlign: 'center', flexShrink: 0 }} />
+          style={{ width: '44px', padding: '1px 4px', background: C2.g, border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', color: C2.silver, fontSize: '9px', outline: 'none', textAlign: 'center', flexShrink: 0 }}
+        />
       </div>
-      <input type="range" min={min} max={max} step={step} value={val}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={val}
         onChange={e => setter(Number(e.target.value))}
-        style={{ width: '100%', accentColor: C2.gold, cursor: 'pointer' }} />
+        style={{ width: '100%', accentColor: C2.gold, cursor: 'pointer' }}
+      />
     </div>
   )
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
       <div>
         <div style={{ fontSize: '9px', color: C2.smoke, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '5px' }}>{tStr.photoFrame}</div>
         <div style={{ display: 'flex', gap: '4px' }}>
           {PHOTO_FRAMES.map(f => (
-            <button key={f.id} onClick={() => setPhotoFrame(f.id)} title={f.label}
-              style={{ flex: 1, height: compact ? '24px' : '28px', cursor: 'pointer', border: `2px solid ${photoFrame === f.id ? C2.gold : 'rgba(255,255,255,0.08)'}`, background: photoFrame === f.id ? 'rgba(212,168,79,0.15)' : C2.g, boxShadow: photoFrame === f.id ? inset : raised, ...f.style, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s', minWidth: 0 }}>
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setPhotoFrame(f.id)}
+              title={f.label}
+              style={{ flex: 1, height: compact ? '24px' : '28px', cursor: 'pointer', border: `2px solid ${photoFrame === f.id ? C2.gold : 'rgba(255,255,255,0.08)'}`, background: photoFrame === f.id ? 'rgba(212,168,79,0.15)' : C2.g, boxShadow: photoFrame === f.id ? inset : raised, ...f.style, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s', minWidth: 0 }}
+            >
               <div style={{ width: '8px', height: '8px', background: photoFrame === f.id ? C2.gold : 'rgba(255,255,255,0.3)', ...f.style, flexShrink: 0 }} />
             </button>
           ))}
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        {hasPhoto && <>{sliderRow(tStr.photoScale, photoScale, 0.3, 3, 0.01, setPhotoScale)}{sliderRow(tStr.photoRotate, photoRotate, -180, 180, 1, setPhotoRotate)}</>}
-        {hasLogo && <>{sliderRow(tStr.logoScale, logoScale, 0.3, 3, 0.01, setLogoScale)}{sliderRow(tStr.logoRotate, logoRotate, -180, 180, 1, setLogoRotate)}</>}
-      </div>
+
       {hasPhoto && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '9px', color: C2.smoke, fontWeight: 600 }}>Photo crop position</div>
-            <button
-              type="button"
-              onClick={() => setPhotoInnerEdit(v => !v)}
-              style={{
-                padding: compact ? '5px 7px' : '6px 9px',
-                background: photoInnerEdit ? 'rgba(212,168,79,0.14)' : C2.g,
-                color: photoInnerEdit ? C2.gold : C2.silver,
-                border: `1px solid ${photoInnerEdit ? 'rgba(212,168,79,0.24)' : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: '8px',
-                boxShadow: photoInnerEdit ? inset : raised,
-                fontSize: compact ? '8px' : '9px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              {photoInnerEdit ? 'Editing photo' : 'Edit photo'}
-            </button>
-          </div>
-          <div style={{ fontSize: compact ? '8px' : '9px', color: C2.smoke, marginBottom: '5px', lineHeight: 1.35 }}>
-            Drag inside the frame to move the photo. Use the wheel to zoom. Use Shift or Alt + wheel to rotate.
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-            <div>
-              <div style={{ fontSize: '8px', color: C2.smoke }}>X: {photoObjPos.x}%</div>
-              <input type="range" min={0} max={100} step={1} value={photoObjPos.x}
-                onChange={e => setPhotoObjPos(p => ({ ...p, x: Number(e.target.value) }))}
-                style={{ width: '100%', accentColor: C2.gold }} />
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <div style={{ fontSize: '9px', color: C2.smoke, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Photo edit mode</div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setPhotoEditMode('frame')}
+                style={{
+                  padding: compact ? '5px 7px' : '6px 9px',
+                  background: photoEditMode === 'frame' ? 'rgba(212,168,79,0.14)' : C2.g,
+                  color: photoEditMode === 'frame' ? C2.gold : C2.silver,
+                  border: `1px solid ${photoEditMode === 'frame' ? 'rgba(212,168,79,0.24)' : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: '8px',
+                  boxShadow: photoEditMode === 'frame' ? inset : raised,
+                  fontSize: compact ? '8px' : '9px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Frame
+              </button>
+              <button
+                type="button"
+                onClick={() => setPhotoEditMode('content')}
+                style={{
+                  padding: compact ? '5px 7px' : '6px 9px',
+                  background: photoEditMode === 'content' ? 'rgba(212,168,79,0.14)' : C2.g,
+                  color: photoEditMode === 'content' ? C2.gold : C2.silver,
+                  border: `1px solid ${photoEditMode === 'content' ? 'rgba(212,168,79,0.24)' : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: '8px',
+                  boxShadow: photoEditMode === 'content' ? inset : raised,
+                  fontSize: compact ? '8px' : '9px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Content
+              </button>
             </div>
-            <div>
-              <div style={{ fontSize: '8px', color: C2.smoke }}>Y: {photoObjPos.y}%</div>
-              <input type="range" min={0} max={100} step={1} value={photoObjPos.y}
-                onChange={e => setPhotoObjPos(p => ({ ...p, y: Number(e.target.value) }))}
-                style={{ width: '100%', accentColor: C2.gold }} />
+          </div>
+
+          <div style={{ fontSize: compact ? '8px' : '9px', color: C2.smoke, lineHeight: 1.35 }}>
+            {photoEditMode === 'frame'
+              ? 'Frame mode: drag the frame on the card. Use the controls to scale or rotate the frame.'
+              : 'Content mode: drag inside the frame to move the photo. Use the wheel to zoom. Use Shift or Alt + wheel to rotate.'}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {sliderRow('Frame scale', photoFrameScale, 0.3, 3, 0.01, setPhotoFrameScale)}
+            {sliderRow('Frame rotate', photoFrameRotate, -180, 180, 1, setPhotoFrameRotate)}
+            {photoEditMode === 'content' && (
+              <>
+                {sliderRow(tStr.photoScale, photoScale, 0.3, 5, 0.01, setPhotoScale)}
+                {sliderRow(tStr.photoRotate, photoRotate, -180, 180, 1, setPhotoRotate)}
+              </>
+            )}
+          </div>
+
+          <div>
+            <div style={{ fontSize: '9px', color: C2.smoke, marginBottom: '3px', fontWeight: 600 }}>Photo position</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <div>
+                <div style={{ fontSize: '8px', color: C2.smoke }}>X: {photoObjPos.x}%</div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={photoObjPos.x}
+                  onChange={e => setPhotoObjPos(p => ({ ...p, x: Number(e.target.value) }))}
+                  style={{ width: '100%', accentColor: C2.gold }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: '8px', color: C2.smoke }}>Y: {photoObjPos.y}%</div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={photoObjPos.y}
+                  onChange={e => setPhotoObjPos(p => ({ ...p, y: Number(e.target.value) }))}
+                  style={{ width: '100%', accentColor: C2.gold }}
+                />
+              </div>
             </div>
           </div>
+        </>
+      )}
+
+      {hasLogo && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          {sliderRow(tStr.logoScale, logoScale, 0.3, 3, 0.01, setLogoScale)}
+          {sliderRow(tStr.logoRotate, logoRotate, -180, 180, 1, setLogoRotate)}
         </div>
       )}
     </div>
   )
 }
-
 
 export default function BuilderPage() {
   const router = useRouter()
@@ -683,8 +776,12 @@ export default function BuilderPage() {
 
   // ── Photo/Logo transform ─────────────────────────────────────
   const [photoFrame, setPhotoFrame] = useState('circle')
+  const [photoFrameScale, setPhotoFrameScale] = useState(1)
+  const [photoFrameRotate, setPhotoFrameRotate] = useState(0)
   const [photoScale, setPhotoScale] = useState(1)
   const [photoRotate, setPhotoRotate] = useState(0)
+  type PhotoEditMode = 'frame' | 'content'
+  const [photoEditMode, setPhotoEditMode] = useState<PhotoEditMode>('frame')
   const [logoScale, setLogoScale] = useState(1)
   const [logoRotate, setLogoRotate] = useState(0)
 
@@ -773,8 +870,8 @@ export default function BuilderPage() {
         kind: type,
         dist: info.dist,
         angle: info.angle,
-        startScale: type === 'photo' ? photoScale : logoScale,
-        startRotate: type === 'photo' ? photoRotate : logoRotate,
+        startScale: type === 'photo' ? photoFrameScale : logoScale,
+        startRotate: type === 'photo' ? photoFrameRotate : logoRotate,
       }
       dragStart.current = null
       dragging.current = type
@@ -805,8 +902,8 @@ export default function BuilderPage() {
         const nextRotate = g.startRotate + (info.angle - g.angle)
 
         if (g.kind === 'photo') {
-          setPhotoScale(Number(nextScale.toFixed(3)))
-          setPhotoRotate(Number(nextRotate.toFixed(2)))
+          setPhotoFrameScale(Number(nextScale.toFixed(3)))
+          setPhotoFrameRotate(Number(nextRotate.toFixed(2)))
         } else {
           setLogoScale(Number(nextScale.toFixed(3)))
           setLogoRotate(Number(nextRotate.toFixed(2)))
@@ -863,7 +960,7 @@ export default function BuilderPage() {
       window.removeEventListener('touchend', onUp)
       window.removeEventListener('touchcancel', onUp)
     }
-  }, [photoScale, photoRotate, logoScale, logoRotate, photoPos, logoPos])
+  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, photoPos, logoPos])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -928,9 +1025,6 @@ export default function BuilderPage() {
   const [cardOffset, setCardOffset] = useState<Pos>({ x: 0, y: 0 })
   const canvasDrag = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
   const movedDuringGesture = useRef(false)
-
-  // ── Direct photo-content edit mode (drag / wheel / pinch / rotate) ─────
-  const [photoInnerEdit, setPhotoInnerEdit] = useState(false)
   const photoInnerDrag = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
   const photoInnerGesture = useRef<{
     dist: number
@@ -953,7 +1047,7 @@ export default function BuilderPage() {
   }
 
   function startCanvasDrag(e: React.MouseEvent | React.TouchEvent) {
-    if (dragging.current) return
+    if (dragging.current || photoInnerDrag.current || photoInnerGesture.current) return
     e.preventDefault()
     e.stopPropagation()
     movedDuringGesture.current = false
@@ -964,7 +1058,7 @@ export default function BuilderPage() {
   function handleCardClick(e?: React.MouseEvent | React.TouchEvent) {
     e?.preventDefault?.()
     e?.stopPropagation?.()
-    if (dragging.current || canvasDrag.current || movedDuringGesture.current) return
+    if (dragging.current || canvasDrag.current || photoInnerDrag.current || movedDuringGesture.current) return
     setIsFlipped(f => !f)
   }
 
@@ -972,10 +1066,10 @@ export default function BuilderPage() {
     return Math.max(0, Math.min(100, v))
   }
 
-  function startPhotoInnerEdit(e: React.MouseEvent | React.TouchEvent) {
+  function startPhotoInnerMode(e: React.MouseEvent | React.TouchEvent) {
     e.preventDefault()
     e.stopPropagation()
-    setPhotoInnerEdit(true)
+    setPhotoEditMode('content')
 
     if ('touches' in e && e.touches.length >= 2) {
       const info = getTouchesInfo(e.touches)
@@ -995,7 +1089,7 @@ export default function BuilderPage() {
   }
 
   function handlePhotoWheel(e: React.WheelEvent) {
-    if (!photoInnerEdit) return
+    if (photoEditMode !== 'content') return
     e.preventDefault()
     e.stopPropagation()
 
@@ -1026,10 +1120,10 @@ export default function BuilderPage() {
         const p = getPoint(e)
         const dx = p.x - photoInnerDrag.current.mx
         const dy = p.y - photoInnerDrag.current.my
-        const nx = clampPercent(photoInnerDrag.current.ox - dx * 0.18)
-        const ny = clampPercent(photoInnerDrag.current.oy - dy * 0.18)
+        const nx = clampPercent(photoInnerDrag.current.ox - dx * 0.55)
+        const ny = clampPercent(photoInnerDrag.current.oy - dy * 0.55)
         setPhotoObjPos({ x: Number(nx.toFixed(2)), y: Number(ny.toFixed(2)) })
-        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) movedDuringGesture.current = true
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) movedDuringGesture.current = true
         return
       }
 
@@ -1072,7 +1166,7 @@ export default function BuilderPage() {
       window.removeEventListener('touchend', onUp)
       window.removeEventListener('touchcancel', onUp)
     }
-  }, [photoScale, photoRotate])
+  }, [photoScale, photoRotate, photoObjPos])
 
   const tabBtn = (id: 'front' | 'back' | 'design', label: string) => (
     <button
@@ -1102,12 +1196,14 @@ export default function BuilderPage() {
   const photoControlsProps: PhotoControlsProps = {
     compact: false,
     photoFrame, setPhotoFrame,
+    photoFrameScale, setPhotoFrameScale,
+    photoFrameRotate, setPhotoFrameRotate,
     photoScale, setPhotoScale,
     photoRotate, setPhotoRotate,
     logoScale, setLogoScale,
     logoRotate, setLogoRotate,
     photoObjPos, setPhotoObjPos,
-    photoInnerEdit, setPhotoInnerEdit,
+    photoEditMode, setPhotoEditMode,
     hasPhoto: !!form.photoUrl,
     hasLogo: !!form.logoUrl,
     tStr: t,
@@ -1123,32 +1219,29 @@ export default function BuilderPage() {
         {form.photoUrl && (
           <div
             onMouseDown={e => {
-              if (photoInnerEdit) {
-                startPhotoInnerEdit(e)
+              e.stopPropagation()
+              if (photoEditMode === 'content') {
+                startPhotoInnerMode(e)
               } else {
-                e.preventDefault(); e.stopPropagation(); startDrag(e, 'photo')
+                e.preventDefault()
+                startDrag(e, 'photo')
               }
             }}
             onTouchStart={e => {
-              if (photoInnerEdit) {
-                startPhotoInnerEdit(e)
-              } else {
-                e.stopPropagation(); startDrag(e, 'photo')
-              }
-            }}
-            onClick={e => {
-              if (movedDuringGesture.current) return
-              e.preventDefault()
               e.stopPropagation()
-              if (!photoInnerEdit) setPhotoInnerEdit(true)
+              if (photoEditMode === 'content') {
+                startPhotoInnerMode(e)
+              } else {
+                startDrag(e, 'photo')
+              }
             }}
             onDoubleClick={e => {
               e.preventDefault()
               e.stopPropagation()
-              setPhotoInnerEdit(v => !v)
+              setPhotoEditMode(m => (m === 'frame' ? 'content' : 'frame'))
             }}
             onWheel={handlePhotoWheel}
-            title={photoInnerEdit ? 'Photo content edit mode' : 'Click to edit photo content'}
+            title={photoEditMode === 'content' ? 'Content mode' : 'Frame mode'}
             style={{
               position: 'absolute',
               left: `${photoPos.x}%`,
@@ -1156,12 +1249,14 @@ export default function BuilderPage() {
               width: '64px',
               height: '64px',
               overflow: 'hidden',
-              cursor: photoInnerEdit ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
+              cursor: photoEditMode === 'content' ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
               zIndex: 10,
+              transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
+              transformOrigin: 'center center',
               ...frameShape,
-              border: `2px solid ${photoInnerEdit ? design.accent : `${design.accent}60`}`,
-              outline: photoInnerEdit ? `2px solid ${design.accent}55` : 'none',
-              outlineOffset: photoInnerEdit ? '2px' : '0px',
+              border: `2px solid ${photoEditMode === 'content' ? design.accent : `${design.accent}60`}`,
+              outline: photoEditMode === 'content' ? `2px solid ${design.accent}55` : 'none',
+              outlineOffset: photoEditMode === 'content' ? '2px' : '0px',
               boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
               touchAction: 'none',
               WebkitUserSelect: 'none',
@@ -1183,6 +1278,25 @@ export default function BuilderPage() {
                 userSelect: 'none',
               }}
             />
+            <div
+              style={{
+                position: 'absolute',
+                left: '50%',
+                bottom: '4px',
+                transform: 'translateX(-50%)',
+                padding: '2px 6px',
+                borderRadius: '999px',
+                fontSize: '8px',
+                fontWeight: 700,
+                background: 'rgba(0,0,0,0.45)',
+                color: '#fff',
+                pointerEvents: 'none',
+                border: '1px solid rgba(255,255,255,0.08)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {photoEditMode === 'content' ? 'Content' : 'Frame'}
+            </div>
           </div>
         )}
 
@@ -1713,7 +1827,7 @@ export default function BuilderPage() {
                 ref={cardRef}
                 onClick={handleCardClick}
                 onTouchEnd={handleCardClick}
-              onPointerUp={handleCardClick}
+                onPointerUp={handleCardClick}
                 onMouseDown={e => e.stopPropagation()}
                 onTouchStart={e => e.stopPropagation()}
                 style={{
