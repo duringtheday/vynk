@@ -444,6 +444,76 @@ const FONTS = [
 ]
 // ──────────────────────────────────────────────────────────────
 
+// ── PhotoControls — outside component to prevent remount on every render ──
+interface PhotoControlsProps {
+  compact?: boolean
+  photoFrame: string; setPhotoFrame: (v:string)=>void
+  photoScale: number; setPhotoScale: (v:number)=>void
+  photoRotate: number; setPhotoRotate: (v:number)=>void
+  logoScale: number; setLogoScale: (v:number)=>void
+  logoRotate: number; setLogoRotate: (v:number)=>void
+  photoObjPos: {x:number;y:number}; setPhotoObjPos: (fn:(p:{x:number;y:number})=>{x:number;y:number})=>void
+  hasPhoto: boolean; hasLogo: boolean
+  tStr: typeof T['en']
+}
+function PhotoControls({ compact=false, photoFrame, setPhotoFrame, photoScale, setPhotoScale, photoRotate, setPhotoRotate, logoScale, setLogoScale, logoRotate, setLogoRotate, photoObjPos, setPhotoObjPos, hasPhoto, hasLogo, tStr }:PhotoControlsProps) {
+  const C2 = { g:'#0D0F12', gold:'#D4A84F', silver:'#BFC3C9', smoke:'#6F737A', nd:'#08090B', nl:'#141720' }
+  const inset = `inset 2px 2px 6px ${C2.nd}, inset -2px -2px 5px ${C2.nl}`
+  const raised = `3px 3px 8px ${C2.nd}, -2px -2px 6px ${C2.nl}`
+  const sliderRow = (label:string, val:number, min:number, max:number, step:number, setter:(v:number)=>void) => (
+    <div key={label}>
+      <div style={{fontSize:compact?'8px':'9px',color:C2.smoke,marginBottom:'2px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'4px'}}>
+        <span style={{flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{label}</span>
+        <input type="number" value={Number(val.toFixed(2))} min={min} max={max} step={step}
+          onChange={e=>setter(Math.max(min,Math.min(max,Number(e.target.value))))}
+          style={{width:'44px',padding:'1px 4px',background:C2.g,border:'1px solid rgba(255,255,255,0.08)',borderRadius:'5px',color:C2.silver,fontSize:'9px',outline:'none',textAlign:'center',flexShrink:0}}/>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={val}
+        onChange={e=>setter(Number(e.target.value))}
+        style={{width:'100%',accentColor:C2.gold,cursor:'pointer'}}/>
+    </div>
+  )
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:'6px',padding:'10px',background:'rgba(255,255,255,0.02)',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.04)'}}>
+      <div>
+        <div style={{fontSize:'9px',color:C2.smoke,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'5px'}}>{tStr.photoFrame}</div>
+        <div style={{display:'flex',gap:'4px'}}>
+          {PHOTO_FRAMES.map(f=>(
+            <button key={f.id} onClick={()=>setPhotoFrame(f.id)} title={f.label}
+              style={{flex:1,height:compact?'24px':'28px',cursor:'pointer',border:`2px solid ${photoFrame===f.id?C2.gold:'rgba(255,255,255,0.08)'}`,background:photoFrame===f.id?'rgba(212,168,79,0.15)':C2.g,boxShadow:photoFrame===f.id?inset:raised,...f.style,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s',minWidth:0}}>
+              <div style={{width:'8px',height:'8px',background:photoFrame===f.id?C2.gold:'rgba(255,255,255,0.3)',...f.style,flexShrink:0}}/>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+        {hasPhoto&&<>{sliderRow(tStr.photoScale, photoScale, 0.3, 3, 0.01, setPhotoScale)}{sliderRow(tStr.photoRotate, photoRotate, -180, 180, 1, setPhotoRotate)}</>}
+        {hasLogo&&<>{sliderRow(tStr.logoScale, logoScale, 0.3, 3, 0.01, setLogoScale)}{sliderRow(tStr.logoRotate, logoRotate, -180, 180, 1, setLogoRotate)}</>}
+      </div>
+      {hasPhoto&&(
+        <div>
+          <div style={{fontSize:'9px',color:C2.smoke,marginBottom:'3px',fontWeight:600}}>Photo crop position</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+            <div>
+              <div style={{fontSize:'8px',color:C2.smoke}}>X: {photoObjPos.x}%</div>
+              <input type="range" min={0} max={100} step={1} value={photoObjPos.x}
+                onChange={e=>setPhotoObjPos(p=>({...p,x:Number(e.target.value)}))}
+                style={{width:'100%',accentColor:C2.gold}}/>
+            </div>
+            <div>
+              <div style={{fontSize:'8px',color:C2.smoke}}>Y: {photoObjPos.y}%</div>
+              <input type="range" min={0} max={100} step={1} value={photoObjPos.y}
+                onChange={e=>setPhotoObjPos(p=>({...p,y:Number(e.target.value)}))}
+                style={{width:'100%',accentColor:C2.gold}}/>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 export default function BuilderPage() {
   const router   = useRouter()
   const photoRef = useRef<HTMLInputElement>(null)
@@ -545,9 +615,10 @@ export default function BuilderPage() {
     }).catch(()=>{})
   },[])
 
-  // ── FIX #1: Drag with refs — no stale closures, works on all devices ──
+  // ── Drag — works on mouse and touch, no stale closures ──────
   function startDrag(e: React.MouseEvent | React.TouchEvent, type:'photo'|'logo') {
-    e.preventDefault(); e.stopPropagation()
+    e.stopPropagation()
+    if(!('touches' in e)) e.preventDefault() // only prevent default on mouse
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
     const pos = type==='photo' ? photoPos : logoPos
@@ -672,73 +743,22 @@ export default function BuilderPage() {
     </button>
   )
 
-  // ── FIX #2 & #3: Photo/Logo controls with numeric inputs + inner-pan ──
-  function PhotoControls({ compact=false }:{ compact?:boolean }) {
-    const s = compact ? {fontSize:'8px'} : {fontSize:'9px'}
-    const sliderRow = (label:string, val:number, min:number, max:number, step:number, setter:(v:number)=>void) => (
-      <div>
-        <div style={{fontSize:compact?'8px':'9px',color:C.smoke,marginBottom:'2px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'4px'}}>
-          <span style={{flexShrink:0}}>{label}</span>
-          <input type="number" value={Number(val.toFixed(2))} min={min} max={max} step={step}
-            onChange={e=>setter(Math.max(min,Math.min(max,Number(e.target.value))))}
-            style={{width:'44px',padding:'1px 4px',background:C.g,border:'1px solid rgba(255,255,255,0.08)',borderRadius:'5px',color:C.silver,fontSize:'9px',outline:'none',textAlign:'center',flexShrink:0}}/>
-        </div>
-        <input type="range" min={min} max={max} step={step} value={val}
-          onChange={e=>setter(Number(e.target.value))}
-          style={{width:'100%',accentColor:C.gold,cursor:'pointer',touchAction:'none'}}/>
-      </div>
-    )
-    return (
-      <div style={{display:'flex',flexDirection:'column',gap:'6px',padding:'10px',background:'rgba(255,255,255,0.02)',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.04)'}}>
-        {/* Frame selector — always visible */}
-        <div>
-          <div style={{fontSize:'9px',color:C.smoke,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'5px'}}>{t.photoFrame}</div>
-          <div style={{display:'flex',gap:'4px',flexWrap:'nowrap'}}>
-            {PHOTO_FRAMES.map(f=>(
-              <button key={f.id} onClick={()=>setPhotoFrame(f.id)} title={f.label}
-                style={{flex:1,height:compact?'24px':'28px',cursor:'pointer',border:`2px solid ${photoFrame===f.id?C.gold:'rgba(255,255,255,0.08)'}`,background:photoFrame===f.id?`rgba(212,168,79,0.15)`:C.g,boxShadow:photoFrame===f.id?insetSm:raisedSm,...f.style,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s',minWidth:0}}>
-                <div style={{width:'8px',height:'8px',background:photoFrame===f.id?C.gold:'rgba(255,255,255,0.3)',...f.style,flexShrink:0}}/>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
-          {form.photoUrl&&<>
-            {sliderRow(t.photoScale, photoScale, 0.3, 3, 0.01, setPhotoScale)}
-            {sliderRow(t.photoRotate, photoRotate, -180, 180, 1, setPhotoRotate)}
-          </>}
-          {form.logoUrl&&<>
-            {sliderRow(t.logoScale, logoScale, 0.3, 3, 0.01, setLogoScale)}
-            {sliderRow(t.logoRotate, logoRotate, -180, 180, 1, setLogoRotate)}
-          </>}
-        </div>
-        {/* FIX #2: Inner-content pan for photo */}
-        {form.photoUrl&&(
-          <div>
-            <div style={{fontSize:'9px',color:C.smoke,marginBottom:'3px'}}>Photo position inside frame</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
-              <div>
-                <div style={{fontSize:'8px',color:C.smoke}}>X: {photoObjPos.x}%</div>
-                <input type="range" min={0} max={100} step={1} value={photoObjPos.x}
-                  onChange={e=>setPhotoObjPos(p=>({...p,x:Number(e.target.value)}))}
-                  style={{width:'100%',accentColor:C.gold}}/>
-              </div>
-              <div>
-                <div style={{fontSize:'8px',color:C.smoke}}>Y: {photoObjPos.y}%</div>
-                <input type="range" min={0} max={100} step={1} value={photoObjPos.y}
-                  onChange={e=>setPhotoObjPos(p=>({...p,y:Number(e.target.value)}))}
-                  style={{width:'100%',accentColor:C.gold}}/>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )
+  // PhotoControls is defined outside — pass props
+  const photoControlsProps: PhotoControlsProps = {
+    compact: false,
+    photoFrame, setPhotoFrame,
+    photoScale, setPhotoScale,
+    photoRotate, setPhotoRotate,
+    logoScale, setLogoScale,
+    logoRotate, setLogoRotate,
+    photoObjPos, setPhotoObjPos,
+    hasPhoto: !!form.photoUrl,
+    hasLogo: !!form.logoUrl,
+    tStr: t,
   }
 
-  // ── CARD FRONT / BACK renders (shared) ─────────────────────
+  const tabBtn = (id:'front'|'back'|'design', label:string) => (
   function CardFront({ radius='20px', minH='300px', pad='32px' }:{ radius?:string; minH?:string; pad?:string }) {
-    const curDragging = dragging.current
     return (
       <div style={{backfaceVisibility:'hidden',WebkitBackfaceVisibility:'hidden',background:cardBg,borderRadius:radius,padding:pad,color:design.textColor,minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'space-between',fontFamily:fontCss,boxShadow:`0 24px 64px ${C.nd}`,position:'relative',overflow:'hidden'}}>
         {tpl?.overlay&&tpl.overlay!=='none'&&<div style={{position:'absolute',inset:0,background:tpl.overlay,pointerEvents:'none'}}/>}
@@ -754,7 +774,7 @@ export default function BuilderPage() {
               left:`${photoPos.x}%`,top:`${photoPos.y}%`,
               width:'64px',height:'64px',
               overflow:'hidden',
-              cursor:curDragging==='photo'?'grabbing':'grab',
+              cursor:dragging.current==='photo'?'grabbing':'grab',
               zIndex:10,
               ...frameShape,
               border:`2px solid ${design.accent}60`,
@@ -765,7 +785,7 @@ export default function BuilderPage() {
               WebkitUserSelect:'none',
               userSelect:'none',
             }}>
-            <img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoObjPos.x}% ${photoObjPos.y}%`,pointerEvents:'none'}} draggable={false}/>
+            <img src={form.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${photoObjPos.x}% ${photoObjPos.y}%`,pointerEvents:'none',userSelect:'none'}} draggable={false}/>
           </div>
         )}
 
@@ -776,7 +796,7 @@ export default function BuilderPage() {
             style={{
               position:'absolute',
               left:`${logoPos.x}%`,top:`${logoPos.y}%`,
-              cursor:curDragging==='logo'?'grabbing':'grab',
+              cursor:dragging.current==='logo'?'grabbing':'grab',
               zIndex:10,
               transform:`scale(${logoScale}) rotate(${logoRotate}deg)`,
               transformOrigin:'top left',
@@ -784,7 +804,7 @@ export default function BuilderPage() {
               WebkitUserSelect:'none',
               userSelect:'none',
             }}>
-            <img src={form.logoUrl} alt="logo" style={{height:'30px',objectFit:'contain',filter:`drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,pointerEvents:'none'}} draggable={false}/>
+            <img src={form.logoUrl} alt="logo" style={{height:'30px',objectFit:'contain',filter:`drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,pointerEvents:'none',userSelect:'none'}} draggable={false}/>
           </div>
         )}
 
@@ -891,7 +911,7 @@ export default function BuilderPage() {
                   <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
                 </div>
               </div>
-              {(form.photoUrl||form.logoUrl)&&<PhotoControls compact/>}
+              {(form.photoUrl||form.logoUrl)&&<PhotoControls {...photoControlsProps} compact={true}/>}
             </>)}
             {activeTab==='back'&&(<>
               <input style={{...nmInp,fontSize:'10px',padding:'5px 7px'}} placeholder={t.tagline} value={form.tagline} onChange={e=>set('tagline',e.target.value)}/>
@@ -988,7 +1008,7 @@ export default function BuilderPage() {
         <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 80% 80% at 50% 50%, ${tpl?.glow||'rgba(212,168,79,0.1)'} 0%, transparent 70%)`,pointerEvents:'none'}}/>
         <div style={{background:C.g,boxShadow:`8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`,borderRadius:'20px',padding:'10px',border:`1px solid ${tpl?.border||'rgba(212,168,79,0.15)'}`,width:'100%',maxWidth:'440px',position:'relative'}}>
           <div style={{perspective:'800px'}}>
-            <div ref={cardRef} onClick={()=>!dragging.current&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:dragging.current?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',borderRadius:'16px',userSelect:'none'}}>
+            <div ref={cardRef} onClick={()=>!dragging.current&&setIsFlipped(f=>!f)} style={{position:'relative',transformStyle:'preserve-3d',transition:dragging.current?'none':'transform .6s cubic-bezier(0.23,1,0.32,1)',transform:isFlipped?'rotateY(180deg)':'rotateY(0deg)',cursor:'pointer',borderRadius:'16px',userSelect:'none',minHeight:'180px'}}>
               <CardFront radius="16px" minH="180px" pad="20px"/>
               <CardBack  radius="16px" minH="180px" pad="20px"/>
             </div>
@@ -1049,7 +1069,7 @@ export default function BuilderPage() {
                   <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
                 </div>
               </div>
-              {(form.photoUrl||form.logoUrl)&&<PhotoControls/>}
+              {(form.photoUrl||form.logoUrl)&&<PhotoControls {...photoControlsProps}/>}
             </>)}
             {activeTab==='back'&&(<>
               <div style={{fontSize:'9px',color:'#4ade80',fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase'}}>{t.content}</div>
@@ -1178,7 +1198,7 @@ export default function BuilderPage() {
                   <input ref={logoRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleFile(e,'logoUrl')}/>
                 </div>
               </div>
-              {(form.photoUrl||form.logoUrl)&&<PhotoControls/>}
+              {(form.photoUrl||form.logoUrl)&&<PhotoControls {...photoControlsProps}/>}
             </>)}
 
             {activeTab==='back'&&(<>
