@@ -918,9 +918,14 @@ export default function BuilderPage() {
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
       const rect = cardRef.current.getBoundingClientRect()
+      const layoutW = cardRef.current.offsetWidth || rect.width || 1
+      const layoutH = cardRef.current.offsetHeight || rect.height || 1
 
-      const dx = ((clientX - dragStart.current.mx) / rect.width) * 100
-      const dy = ((clientY - dragStart.current.my) / rect.height) * 100
+      const scaleX = rect.width / layoutW || 1
+      const scaleY = rect.height / layoutH || 1
+
+      const dx = ((clientX - dragStart.current.mx) / scaleX / layoutW) * 100
+      const dy = ((clientY - dragStart.current.my) / scaleY / layoutH) * 100
 
       const nx = Math.max(0, Math.min(100, dragStart.current.ox + dx))
       const ny = Math.max(0, Math.min(100, dragStart.current.oy + dy))
@@ -931,7 +936,7 @@ export default function BuilderPage() {
         setLogoPos({ x: nx, y: ny })
       }
 
-      if (Math.abs(dx) > 0.2 || Math.abs(dy) > 0.2) {
+      if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) {
         movedDuringGesture.current = true
       }
     }
@@ -1559,8 +1564,8 @@ export default function BuilderPage() {
                 userSelect: 'none'
               }}
             >
-              <CardFront radius="16px" minH="180px" pad="20px" />
-              <CardBack radius="16px" minH="180px" pad="20px" />
+              <CardFront radius="16px" minH="220px" pad="20px" />
+              <CardBack radius="16px" minH="220px" pad="20px" />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', padding: '0 2px' }}>
