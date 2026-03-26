@@ -7,7 +7,7 @@
 // #4 — Login logo: 20% smaller, no overflow
 // #5 — Photo/logo: inner-content pan controls added
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type Dispatch, type SetStateAction } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -552,11 +552,14 @@ interface PhotoControlsProps {
   photoRotate: number; setPhotoRotate: (v: number) => void
   logoScale: number; setLogoScale: (v: number) => void
   logoRotate: number; setLogoRotate: (v: number) => void
-  photoObjPos: { x: number; y: number }; setPhotoObjPos: (fn: (p: { x: number; y: number }) => { x: number; y: number }) => void
+  photoObjPos: { x: number; y: number }
+  setPhotoObjPos: Dispatch<SetStateAction<{ x: number; y: number }>>
+  photoInnerEdit: boolean
+  setPhotoInnerEdit: Dispatch<SetStateAction<boolean>>
   hasPhoto: boolean; hasLogo: boolean
   tStr: typeof T['en']
 }
-function PhotoControls({ compact = false, photoFrame, setPhotoFrame, photoScale, setPhotoScale, photoRotate, setPhotoRotate, logoScale, setLogoScale, logoRotate, setLogoRotate, photoObjPos, setPhotoObjPos, hasPhoto, hasLogo, tStr }: PhotoControlsProps) {
+function PhotoControls({ compact = false, photoFrame, setPhotoFrame, photoScale, setPhotoScale, photoRotate, setPhotoRotate, logoScale, setLogoScale, logoRotate, setLogoRotate, photoObjPos, setPhotoObjPos, photoInnerEdit, setPhotoInnerEdit, hasPhoto, hasLogo, tStr }: PhotoControlsProps) {
   const C2 = { g: '#0D0F12', gold: '#D4A84F', silver: '#BFC3C9', smoke: '#6F737A', nd: '#08090B', nl: '#141720' }
   const inset = `inset 2px 2px 6px ${C2.nd}, inset -2px -2px 5px ${C2.nl}`
   const raised = `3px 3px 8px ${C2.nd}, -2px -2px 6px ${C2.nl}`
@@ -592,7 +595,29 @@ function PhotoControls({ compact = false, photoFrame, setPhotoFrame, photoScale,
       </div>
       {hasPhoto && (
         <div>
-          <div style={{ fontSize: '9px', color: C2.smoke, marginBottom: '3px', fontWeight: 600 }}>Photo crop position</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+            <div style={{ fontSize: '9px', color: C2.smoke, fontWeight: 600 }}>Photo crop position</div>
+            <button
+              type="button"
+              onClick={() => setPhotoInnerEdit(v => !v)}
+              style={{
+                padding: compact ? '5px 7px' : '6px 9px',
+                background: photoInnerEdit ? 'rgba(212,168,79,0.14)' : C2.g,
+                color: photoInnerEdit ? C2.gold : C2.silver,
+                border: `1px solid ${photoInnerEdit ? 'rgba(212,168,79,0.24)' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: '8px',
+                boxShadow: photoInnerEdit ? inset : raised,
+                fontSize: compact ? '8px' : '9px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              {photoInnerEdit ? 'Editing photo' : 'Edit photo'}
+            </button>
+          </div>
+          <div style={{ fontSize: compact ? '8px' : '9px', color: C2.smoke, marginBottom: '5px', lineHeight: 1.35 }}>
+            Drag inside the frame to move the photo. Use the wheel to zoom. Use Shift or Alt + wheel to rotate.
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
             <div>
               <div style={{ fontSize: '8px', color: C2.smoke }}>X: {photoObjPos.x}%</div>
@@ -724,9 +749,10 @@ export default function BuilderPage() {
     startRotate: number
   } | null>(null)
 
-  function getTouchesInfo(touches: TouchList) {
+  function getTouchesInfo(touches: ArrayLike<{ clientX: number; clientY: number }>) {
     const a = touches[0]
     const b = touches[1]
+    if (!a || !b) return { dist: 0, angle: 0 }
     const dx = b.clientX - a.clientX
     const dy = b.clientY - a.clientY
     return {
@@ -1081,6 +1107,7 @@ export default function BuilderPage() {
     logoScale, setLogoScale,
     logoRotate, setLogoRotate,
     photoObjPos, setPhotoObjPos,
+    photoInnerEdit, setPhotoInnerEdit,
     hasPhoto: !!form.photoUrl,
     hasLogo: !!form.logoUrl,
     tStr: t,
@@ -1109,13 +1136,19 @@ export default function BuilderPage() {
                 e.stopPropagation(); startDrag(e, 'photo')
               }
             }}
+            onClick={e => {
+              if (movedDuringGesture.current) return
+              e.preventDefault()
+              e.stopPropagation()
+              if (!photoInnerEdit) setPhotoInnerEdit(true)
+            }}
             onDoubleClick={e => {
               e.preventDefault()
               e.stopPropagation()
               setPhotoInnerEdit(v => !v)
             }}
             onWheel={handlePhotoWheel}
-            title={photoInnerEdit ? 'Photo content edit mode' : 'Double click to edit photo content'}
+            title={photoInnerEdit ? 'Photo content edit mode' : 'Click to edit photo content'}
             style={{
               position: 'absolute',
               left: `${photoPos.x}%`,
@@ -1412,8 +1445,8 @@ export default function BuilderPage() {
                 userSelect: 'none'
               }}
             >
-              <CardFront radius="16px" minH="220px" pad="20px" />
-              <CardBack radius="16px" minH="220px" pad="20px" />
+              <CardFront radius="16px" minH="180px" pad="20px" />
+              <CardBack radius="16px" minH="180px" pad="20px" />
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', padding: '0 2px' }}>
@@ -1680,7 +1713,7 @@ export default function BuilderPage() {
                 ref={cardRef}
                 onClick={handleCardClick}
                 onTouchEnd={handleCardClick}
-                onPointerUp={handleCardClick}
+              onPointerUp={handleCardClick}
                 onMouseDown={e => e.stopPropagation()}
                 onTouchStart={e => e.stopPropagation()}
                 style={{
