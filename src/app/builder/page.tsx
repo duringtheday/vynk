@@ -1271,11 +1271,11 @@ export default function BuilderPage() {
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                objectPosition: `${photoObjPos.x}% ${photoObjPos.y}%`,
-                transform: `scale(${photoScale}) rotate(${photoRotate}deg)`,
+                objectPosition: 'center center',
+                transform: `translate(${(photoObjPos.x - 50) * 1.2}%, ${(photoObjPos.y - 50) * 1.2}%) scale(${photoScale}) rotate(${photoRotate}deg)`,
                 transformOrigin: 'center center',
-                pointerEvents: 'none',
                 userSelect: 'none',
+                pointerEvents: 'none',
               }}
             />
             <div
