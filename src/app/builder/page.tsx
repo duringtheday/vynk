@@ -736,7 +736,15 @@ export default function BuilderPage() {
   const router = useRouter()
   const photoRef = useRef<HTMLInputElement>(null)
   const logoRef = useRef<HTMLInputElement>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
+  const desktopCardRef = useRef<HTMLDivElement>(null)
+  const mobileCardRef = useRef<HTMLDivElement>(null)
+  const landscapeCardRef = useRef<HTMLDivElement>(null)
+
+  const getActiveCardEl = () => {
+    if (isMobile && isLandscape) return landscapeCardRef.current
+    if (isMobile) return mobileCardRef.current
+    return desktopCardRef.current
+  }
 
   // ── i18n state — persisted in localStorage ──────────────────
   const [lang, setLang] = useState<'en' | 'es'>('en')
@@ -773,6 +781,9 @@ export default function BuilderPage() {
   // ── Photo/Logo position ─────────────────────────────────────
   const [photoPos, setPhotoPos] = useState<Pos>({ x: 72, y: 10 })
   const [logoPos, setLogoPos] = useState<Pos>({ x: 10, y: 72 })
+  const photoPosRef = useRef<Pos>({ x: 72, y: 10 })
+  const logoPosRef = useRef<Pos>({ x: 10, y: 72 })
+
 
   // ── Photo/Logo transform ─────────────────────────────────────
   const [photoFrame, setPhotoFrame] = useState('circle')
@@ -860,7 +871,6 @@ export default function BuilderPage() {
 
   function startDrag(e: React.MouseEvent | React.TouchEvent, type: 'photo' | 'logo') {
     e.stopPropagation()
-    if (!('touches' in e)) e.preventDefault()
 
     movedDuringGesture.current = false
 
@@ -881,7 +891,7 @@ export default function BuilderPage() {
 
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-    const pos = type === 'photo' ? photoPos : logoPos
+    const pos = type === 'photo' ? photoPosRef.current : logoPosRef.current
 
     dragStart.current = { mx: clientX, my: clientY, ox: pos.x, oy: pos.y }
     gestureStart.current = null
@@ -891,7 +901,8 @@ export default function BuilderPage() {
 
   useEffect(() => {
     function onMove(e: MouseEvent | TouchEvent) {
-      if (!dragging.current || !cardRef.current) return
+      const activeCard = getActiveCardEl()
+      if (!dragging.current || !activeCard) return
       if ('cancelable' in e && e.cancelable) e.preventDefault()
 
       if ('touches' in e && e.touches.length >= 2 && gestureStart.current) {
@@ -917,9 +928,9 @@ export default function BuilderPage() {
 
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      const rect = cardRef.current.getBoundingClientRect()
-      const layoutW = cardRef.current.offsetWidth || rect.width || 1
-      const layoutH = cardRef.current.offsetHeight || rect.height || 1
+      const rect = activeCard.getBoundingClientRect()
+      const layoutW = activeCard.offsetWidth || rect.width || 1
+      const layoutH = activeCard.offsetHeight || rect.height || 1
 
       const scaleX = rect.width / layoutW || 1
       const scaleY = rect.height / layoutH || 1
@@ -931,8 +942,10 @@ export default function BuilderPage() {
       const ny = Math.max(0, Math.min(100, dragStart.current.oy + dy))
 
       if (dragging.current === 'photo') {
+        photoPosRef.current = { x: nx, y: ny }
         setPhotoPos({ x: nx, y: ny })
       } else {
+        logoPosRef.current = { x: nx, y: ny }
         setLogoPos({ x: nx, y: ny })
       }
 
@@ -965,28 +978,74 @@ export default function BuilderPage() {
       window.removeEventListener('touchend', onUp)
       window.removeEventListener('touchcancel', onUp)
     }
-  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, photoPos, logoPos])
+  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
     sheetDragRef.current = { startY: e.touches[0].clientY, startH: sheetH }
   }
   function onSheetDragMove(e: React.TouchEvent) {
-    if (!sheetDragRef.current) return; e.preventDefault()
+    if (!sheetDragRef.current) return
     const dy = sheetDragRef.current.startY - e.touches[0].clientY
     const nh = Math.max(80, Math.min(window.innerHeight * 0.88, sheetDragRef.current.startH + dy))
-    setSheetH(nh); setSheetHidden(false)
+    setSheetH(nh)
+    setSheetHidden(false)
   }
+
   function onSheetDragEnd() { sheetDragRef.current = null }
 
   const set = (k: keyof Form, v: string) => setForm(f => ({ ...f, [k]: v }))
   const setD = (k: keyof Design, v: string) => setDesign(d => ({ ...d, [k]: v }))
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>, field: 'photoUrl' | 'logoUrl') {
-    const file = e.target.files?.[0]; if (!file) return
-    if (file.size > 5 * 1024 * 1024) { toast.error(t.imgSize); return }
+  function handleFile(
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'photoUrl' | 'logoUrl'
+  ) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t.imgSize)
+      return
+    }
+
     const reader = new FileReader()
-    reader.onload = ev => set(field, ev.target?.result as string)
+
+    reader.onload = ev => {
+      const url = ev.target?.result as string
+
+      if (field === 'photoUrl') {
+        const nextPhotoPos = form.photoUrl
+          ? photoPosRef.current
+          : { x: 72, y: 10 }
+
+        photoPosRef.current = nextPhotoPos
+        setPhotoPos(nextPhotoPos)
+
+        setPhotoObjPos({ x: 50, y: 50 })
+        setPhotoFrameScale(1)
+        setPhotoFrameRotate(0)
+        setPhotoScale(1)
+        setPhotoRotate(0)
+        setPhotoEditMode('frame')
+      }
+
+      if (field === 'logoUrl') {
+        const defaultLogoPos = { x: 10, y: 72 }
+
+        logoPosRef.current = defaultLogoPos
+        setLogoPos(defaultLogoPos)
+
+        setLogoObjPos({ x: 50, y: 50 })
+        setLogoScale(1)
+        setLogoRotate(0)
+      }
+
+      set(field, url)
+
+      e.target.value = ''
+    }
+
     reader.readAsDataURL(file)
   }
 
@@ -1028,6 +1087,9 @@ export default function BuilderPage() {
 
   // ── Card canvas pan (move card in canvas) ───────────────────
   const [cardOffset, setCardOffset] = useState<Pos>({ x: 0, y: 0 })
+  useEffect(() => {
+    setCardOffset({ x: 0, y: 0 })
+  }, [isMobile, isLandscape])
   const canvasDrag = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
   const movedDuringGesture = useRef(false)
   const photoInnerDrag = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
@@ -1053,15 +1115,20 @@ export default function BuilderPage() {
 
   function startCanvasDrag(e: React.MouseEvent | React.TouchEvent) {
     if (dragging.current || photoInnerDrag.current || photoInnerGesture.current) return
-    e.preventDefault()
+
+    const target = e.target as HTMLElement | null
+    if (!target) return
+
+    if (target.closest('button, input, textarea, select, a, label')) return
+
     e.stopPropagation()
     movedDuringGesture.current = false
+
     const p = getPoint(e)
     canvasDrag.current = { mx: p.x, my: p.y, ox: cardOffset.x, oy: cardOffset.y }
   }
 
   function handleCardClick(e?: React.MouseEvent | React.TouchEvent) {
-    e?.preventDefault?.()
     e?.stopPropagation?.()
     if (dragging.current || canvasDrag.current || photoInnerDrag.current || movedDuringGesture.current) return
     setIsFlipped(f => !f)
@@ -1072,7 +1139,7 @@ export default function BuilderPage() {
   }
 
   function startPhotoInnerMode(e: React.MouseEvent | React.TouchEvent) {
-    e.preventDefault()
+    if ('cancelable' in e && e.cancelable) e.preventDefault()
     e.stopPropagation()
     setPhotoEditMode('content')
 
@@ -1095,7 +1162,7 @@ export default function BuilderPage() {
 
   function handlePhotoWheel(e: React.WheelEvent) {
     if (photoEditMode !== 'content') return
-    e.preventDefault()
+    // e.preventDefault()
     e.stopPropagation()
 
     if (e.shiftKey || e.altKey) {
@@ -1150,12 +1217,19 @@ export default function BuilderPage() {
     }
 
     function onUp() {
+      const hadGesture =
+        !!canvasDrag.current ||
+        !!photoInnerDrag.current ||
+        !!photoInnerGesture.current ||
+        movedDuringGesture.current
+
       canvasDrag.current = null
       photoInnerDrag.current = null
       photoInnerGesture.current = null
-      requestAnimationFrame(() => {
-        movedDuringGesture.current = false
-      })
+
+      setTimeout(() => {
+        if (hadGesture) movedDuringGesture.current = false
+      }, 180)
     }
 
     window.addEventListener('mousemove', onMove)
@@ -1214,31 +1288,61 @@ export default function BuilderPage() {
     tStr: t,
   }
 
-  function CardFront({ radius = '20px', minH = '300px', pad = '32px' }: { radius?: string; minH?: string; pad?: string }) {
+  function CardFront({
+    radius = '20px',
+    minH = '300px',
+    pad = '32px' }: { radius?: string; minH?: string; pad?: string }) {
     return (
-      <div style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', background: cardBg, borderRadius: radius, padding: pad, color: design.textColor, minHeight: minH, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: fontCss, boxShadow: `0 24px 64px ${C.nd}`, position: 'relative', overflow: 'hidden' }}>
-        {tpl?.overlay && tpl.overlay !== 'none' && <div style={{ position: 'absolute', inset: 0, background: tpl.overlay, pointerEvents: 'none' }} />}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: svgOverlay, backgroundSize: '100% 100%', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', inset: 0, borderRadius: radius, border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`, pointerEvents: 'none' }} />
+      <div
+        style={{
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+          background: cardBg,
+          borderRadius: radius,
+          padding: pad,
+          color: design.textColor,
+          minHeight: minH,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          fontFamily: fontCss,
+          boxShadow: `0 24px 64px ${C.nd}`,
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+        {tpl?.overlay && tpl.overlay !== 'none' &&
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: tpl.overlay,
+              pointerEvents: 'none'
+            }} />}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: svgOverlay,
+            backgroundSize: '100% 100%',
+            pointerEvents: 'none'
+          }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: radius,
+            border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`,
+            pointerEvents: 'none'
+          }} />
 
         {form.photoUrl && (
           <div
-            onMouseDown={e => {
+            onPointerDown={e => {
               e.stopPropagation()
               if (photoEditMode === 'content') {
-                startPhotoInnerMode(e)
-              } else {
-                e.preventDefault()
-                startDrag(e, 'photo')
+                return
               }
-            }}
-            onTouchStart={e => {
-              e.stopPropagation()
-              if (photoEditMode === 'content') {
-                startPhotoInnerMode(e)
-              } else {
-                startDrag(e, 'photo')
-              }
+              startDrag(e as unknown as React.MouseEvent | React.TouchEvent, 'photo')
             }}
             onDoubleClick={e => {
               e.preventDefault()
@@ -1255,13 +1359,11 @@ export default function BuilderPage() {
               height: '64px',
               overflow: 'hidden',
               cursor: photoEditMode === 'content' ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
-              zIndex: 10,
+              zIndex: 50,
               transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
               transformOrigin: 'center center',
               ...frameShape,
-              border: `2px solid ${photoEditMode === 'content' ? design.accent : `${design.accent}60`}`,
-              outline: photoEditMode === 'content' ? `2px solid ${design.accent}55` : 'none',
-              outlineOffset: photoEditMode === 'content' ? '2px' : '0px',
+              border: `2px solid ${design.accent}`,
               boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
               touchAction: 'none',
               WebkitUserSelect: 'none',
@@ -1270,11 +1372,11 @@ export default function BuilderPage() {
           >
             <img
               src={form.photoUrl}
-              alt=""
+              alt="photo"
               draggable={false}
               style={{
                 width: '100%',
-                height: '100%',
+                height: 'auto',
                 objectFit: 'cover',
                 objectPosition: 'center center',
                 transform: `translate(${(photoObjPos.x - 50) * 1.2}%, ${(photoObjPos.y - 50) * 1.2}%) scale(${photoScale}) rotate(${photoRotate}deg)`,
@@ -1307,49 +1409,186 @@ export default function BuilderPage() {
 
         {form.logoUrl && (
           <div
-            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); startDrag(e, 'logo') }}
-            onTouchStart={e => { e.stopPropagation(); startDrag(e, 'logo') }}
+            onPointerDown={e => {
+              e.stopPropagation()
+              startDrag(e as unknown as React.MouseEvent | React.TouchEvent, 'logo')
+            }}
             style={{
               position: 'absolute',
-              left: `${logoPos.x}%`, top: `${logoPos.y}%`,
+              left: `${logoPos.x}%`,
+              top: `${logoPos.y}%`,
               cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
-              zIndex: 10,
+              zIndex: 50,
               transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
               transformOrigin: 'top left',
               touchAction: 'none',
               WebkitUserSelect: 'none',
               userSelect: 'none',
-            }}>
-            <img src={form.logoUrl} alt="logo" style={{ height: '30px', objectFit: 'contain', filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`, pointerEvents: 'none', userSelect: 'none' }} draggable={false} />
+            }}
+          >
+            <img
+              src={form.logoUrl}
+              alt="logo"
+              draggable={false}
+              style={{
+                height: '30px',
+                objectFit: 'contain',
+                filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
+                pointerEvents: 'none',
+                userSelect: 'none'
+              }}
+            />
           </div>
         )}
-
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '.14em', opacity: .3, textTransform: 'uppercase', marginBottom: '18px', color: design.accent }}>VYNK</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1.15, marginBottom: '6px' }}>{form.fullName || 'Your Name'}</div>
-          <div style={{ fontSize: '13px', opacity: .7 }}>{[form.title, form.company].filter(Boolean).join(' · ') || 'Title · Company'}</div>
-          {form.tagline && <div style={{ fontSize: '11px', opacity: .5, marginTop: '8px', lineHeight: 1.6, maxWidth: '55%' }}>{form.tagline}</div>}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 0
+          }}>
+          <div
+            style={{
+              fontSize: '9px',
+              fontWeight: 700,
+              letterSpacing: '.14em',
+              opacity: .3,
+              textTransform: 'uppercase',
+              marginBottom: '18px',
+              color: design.accent
+            }}>VYNK</div>
+          <div
+            style={{
+              fontSize: '28px',
+              fontWeight: 700,
+              lineHeight: 1.15,
+              marginBottom: '6px'
+            }}>{form.fullName || 'Your Name'}</div>
+          <div
+            style={{
+              fontSize: '13px',
+              opacity: .7
+            }}>{[form.title, form.company].filter(Boolean).join(' · ') || 'Title · Company'}</div>
+          {form.tagline &&
+            <div
+              style={{
+                fontSize: '11px',
+                opacity: .5,
+                marginTop: '8px',
+                lineHeight: 1.6,
+                maxWidth: '55%'
+              }}>{form.tagline}</div>}
         </div>
         {!form.photoUrl && (
-          <div style={{ position: 'absolute', top: '28px', right: '28px', width: '56px', height: '56px', borderRadius: '50%', background: `${design.accent}18`, border: `2px solid ${design.accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700, color: design.accent }}>{initials}</div>
+          <div
+            style={{
+              position: 'absolute',
+              top: '28px',
+              right: '28px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: `${design.accent}18`,
+              border: `2px solid ${design.accent}30`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 700,
+              color: design.accent
+            }}>{initials}</div>
         )}
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          {form.email && <div style={{ fontSize: '11px', opacity: .55, marginBottom: '2px' }}>{form.email}</div>}
-          {form.website && <div style={{ fontSize: '11px', opacity: .35 }}>{form.website.replace(/^https?:\/\//, '')}</div>}
-          <div style={{ marginTop: '14px', width: '60%', height: '1px', background: `linear-gradient(90deg,${design.accent}60,transparent)` }} />
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 0
+          }}>
+          {form.email &&
+            <div
+              style={{
+                fontSize: '11px',
+                opacity: .55,
+                marginBottom: '2px'
+              }}>{form.email}</div>}
+          {form.website &&
+            <div
+              style={{
+                fontSize: '11px',
+                opacity: .35
+              }}>{form.website.replace(/^https?:\/\//, '')}</div>}
+          <div
+            style={{
+              marginTop: '14px',
+              width: '60%',
+              height: '1px',
+              background: `linear-gradient(90deg,${design.accent}60,transparent)`
+            }} />
         </div>
       </div>
     )
   }
 
-  function CardBack({ radius = '20px', minH = '300px', pad = '32px' }: { radius?: string; minH?: string; pad?: string }) {
+  function CardBack({
+    radius = '20px',
+    minH = '300px',
+    pad = '32px' }: { radius?: string; minH?: string; pad?: string }) {
     return (
-      <div style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: cardBg, borderRadius: radius, padding: pad, color: design.textColor, minHeight: minH, height: '100%', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: fontCss, filter: 'brightness(0.85)', overflow: 'hidden' }}>
+      <div
+        style={{
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+          transform: 'rotateY(180deg)',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: cardBg,
+          borderRadius: radius,
+          padding: pad,
+          color: design.textColor,
+          minHeight: minH,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+          fontFamily: fontCss,
+          filter: 'brightness(0.85)',
+          overflow: 'hidden'
+        }}>
         {tpl?.overlay && tpl.overlay !== 'none' && <div style={{ position: 'absolute', inset: 0, background: tpl.overlay, pointerEvents: 'none' }} />}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: svgOverlay, backgroundSize: '100% 100%', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', inset: 0, borderRadius: radius, border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`, pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
-          <div style={{ fontSize: '9px', opacity: .3, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: design.accent }}>VYNK · SERVICES</div>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: svgOverlay,
+            backgroundSize: '100% 100%',
+            pointerEvents: 'none'
+          }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: radius,
+            border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`,
+            pointerEvents: 'none'
+          }} />
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            height: '100%'
+          }}>
+          <div
+            style={{
+              fontSize: '9px',
+              opacity: .3,
+              fontWeight: 700,
+              letterSpacing: '.14em',
+              textTransform: 'uppercase',
+              color: design.accent
+            }}>VYNK · SERVICES</div>
           {form.services && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
               {form.services.split(',').filter(Boolean).map(s => (
@@ -1370,11 +1609,57 @@ export default function BuilderPage() {
 
   // ── WARNING MODAL ───────────────────────────────────────────
   const WarningModal = () => showWarning ? (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,6,7,0.88)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <div style={{ background: C.g, boxShadow: `14px 14px 36px ${C.nd},-8px -8px 24px ${C.nl}`, borderRadius: '24px', padding: '36px', maxWidth: '420px', width: '100%', border: '1px solid rgba(212,168,79,0.08)' }}>
-        <div style={{ fontSize: '28px', marginBottom: '12px' }}>⚠️</div>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: C.silver, fontFamily: "'Syne',sans-serif" }}>{t.identityChange}</h2>
-        <p style={{ color: C.smoke, fontSize: '13px', marginBottom: '20px', lineHeight: 1.7 }}>{t.changed} <span style={{ color: C.gold, fontWeight: 600 }}>{paidChanges.map(k => FIELD_LABELS[k] || k).join(', ')}</span><br /><br />{t.archiveWarning} <strong style={{ color: C.gold }}>$10</strong>.</p>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(5,6,7,0.88)',
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px'
+      }}>
+      <div
+        style={{
+          background: C.g,
+          boxShadow: `14px 14px 36px ${C.nd},-8px -8px 24px ${C.nl}`,
+          borderRadius: '24px',
+          padding: '36px',
+          maxWidth: '420px',
+          width: '100%',
+          border: '1px solid rgba(212,168,79,0.08)'
+        }}>
+        <div
+          style={{
+            fontSize: '28px',
+            marginBottom: '12px'
+          }}>⚠️</div>
+        <h2
+          style={{
+            fontSize: '16px',
+            fontWeight: 700,
+            marginBottom: '8px',
+            color: C.silver,
+            fontFamily: "'Syne',sans-serif"
+          }}>{t.identityChange}</h2>
+        <p
+          style={{
+            color: C.smoke,
+            fontSize: '13px',
+            marginBottom: '20px',
+            lineHeight: 1.7
+          }}>{t.changed}
+          <span
+            style={{
+              color: C.gold,
+              fontWeight: 600
+            }}>{paidChanges.map(k => FIELD_LABELS[k] || k).join(', ')}
+          </span><br /><br />{t.archiveWarning}
+          <strong
+            style={{
+              color: C.gold
+            }}>$10</strong>.</p>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button onClick={() => { setShowWarning(false); setPaidChanges([]) }} style={{ flex: 1, padding: '12px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(255,255,255,0.04)', borderRadius: '12px', color: C.smoke, fontSize: '13px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>{t.cancel}</button>
           <button onClick={() => { setShowWarning(false); submit(true) }} style={{ flex: 1, padding: '12px', background: `linear-gradient(135deg,${C.gold},${C.goldLt},${C.goldDk})`, color: C.carbon, borderRadius: '12px', fontSize: '13px', fontWeight: 700, border: 'none', cursor: 'pointer', boxShadow: goldBox, fontFamily: "'DM Sans',sans-serif" }}>{t.pay10}</button>
@@ -1463,18 +1748,38 @@ export default function BuilderPage() {
       {/* CANVAS landscape */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 60% 80% at 50% 50%, ${tpl?.glow || 'rgba(212,168,79,0.1)'} 0%, transparent 70%)`, pointerEvents: 'none' }} />
-        <button onClick={() => setSidebarOpen(v => !v)} style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '24px', height: '44px', borderRadius: '7px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(255,255,255,0.04)', color: C.smoke, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}>
+        <button onClick={() => setSidebarOpen(v => !v)}
+          style={{
+            position: 'absolute',
+            left: '6px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 10,
+            width: '24px',
+            height: '44px',
+            borderRadius: '7px',
+            background: C.g,
+            boxShadow: raisedSm,
+            border: '1px solid rgba(255,255,255,0.04)',
+            color: C.smoke,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            touchAction: 'manipulation'
+          }}>
           {sidebarOpen ? '‹' : '›'}
         </button>
         <div style={{ background: C.g, boxShadow: `8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`, borderRadius: '16px', padding: '8px', border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`, maxHeight: 'calc(100dvh - 32px)', maxWidth: 'calc(100vw - 280px)', aspectRatio: '1.586/1', position: 'relative', display: 'flex', alignItems: 'stretch' }}>
           <div style={{ perspective: '800px', flex: 1 }}>
             <div
-              ref={cardRef}
+              ref={landscapeCardRef}
               onClick={handleCardClick}
-              onTouchEnd={handleCardClick}
-              onPointerUp={handleCardClick}
-              onMouseDown={e => e.stopPropagation()}
-              onTouchStart={e => e.stopPropagation()}
+              // onTouchEnd={handleCardClick}
+              // onPointerUp={handleCardClick}
+              onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
+              onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -1487,8 +1792,8 @@ export default function BuilderPage() {
                 userSelect: 'none'
               }}
             >
-              <CardFront radius="12px" minH="0" pad="16px" />
-              <CardBack radius="12px" minH="0" pad="16px" />
+              <CardFront radius="12px" minH="220px" pad="16px" />
+              <CardBack radius="12px" minH="220px" pad="16px" />
             </div>
           </div>
         </div>
@@ -1505,8 +1810,19 @@ export default function BuilderPage() {
   if (isMobile) return (
     <div style={{ height: '100dvh', background: C.g, display: 'flex', flexDirection: 'column', fontFamily: "'DM Sans',sans-serif", overflow: 'hidden', position: 'relative' }}>
       {showRotateHint && !isLandscape && (
-        <div onClick={() => setShowRotateHint(false)} onTouchStart={() => setShowRotateHint(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(5,6,7,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', cursor: 'pointer' }}>
+        <div onClick={() => setShowRotateHint(false)}
+          onTouchStart={() => setShowRotateHint(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: 'rgba(5,6,7,0.92)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '24px',
+            cursor: 'pointer'
+          }}>
           <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
             <rect x="35" y="10" width="50" height="80" rx="8" fill="none" stroke="rgba(212,168,79,0.2)" strokeWidth="2" />
             <rect x="39" y="14" width="42" height="72" rx="6" fill="rgba(212,168,79,0.04)" />
@@ -1514,11 +1830,36 @@ export default function BuilderPage() {
             <path d="M 90 50 C 100 30 110 40 105 55" stroke="#D4A84F" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.9" />
             <path d="M 105 55 L 108 48 M 105 55 L 99 53" stroke="#D4A84F" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
-          <div style={{ textAlign: 'center', padding: '0 32px' }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: '18px', color: '#D4A84F', marginBottom: '8px' }}>{t.rotateDevice}</div>
-            <div style={{ fontSize: '13px', color: '#6F737A', lineHeight: 1.6 }}>{t.rotateHint}</div>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '0 32px'
+            }}>
+            <div
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                fontWeight: 800,
+                fontSize: '18px',
+                color: '#D4A84F',
+                marginBottom: '8px'
+              }}>{t.rotateDevice}</div>
+            <div
+              style={{
+                fontSize: '13px',
+                color: '#6F737A',
+                lineHeight: 1.6
+              }}>{t.rotateHint}</div>
           </div>
-          <div style={{ padding: '10px 24px', background: 'rgba(212,168,79,0.08)', border: '1px solid rgba(212,168,79,0.2)', borderRadius: '20px', fontSize: '12px', color: '#D4A84F', fontWeight: 600 }}>{t.tapDismiss}</div>
+          <div
+            style={{
+              padding: '10px 24px',
+              background: 'rgba(212,168,79,0.08)',
+              border: '1px solid rgba(212,168,79,0.2)',
+              borderRadius: '20px',
+              fontSize: '12px',
+              color: '#D4A84F',
+              fontWeight: 600
+            }}>{t.tapDismiss}</div>
         </div>
       )}
       <WarningModal />
@@ -1539,19 +1880,54 @@ export default function BuilderPage() {
 
       {/* Card preview area */}
       <div
-        onMouseDown={startCanvasDrag}
-        onTouchStart={startCanvasDrag}
-        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 16px 0', overflow: 'hidden', position: 'relative', minHeight: 0, cursor: canvasDrag.current ? 'grabbing' : 'default' }}>
-        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 80% 80% at 50% 50%, ${tpl?.glow || 'rgba(212,168,79,0.1)'} 0%, transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ background: C.g, boxShadow: `8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`, borderRadius: '20px', padding: '10px', border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`, width: '100%', maxWidth: '350px', position: 'relative', transform: `translate(${cardOffset.x}px,${cardOffset.y}px)`, transition: canvasDrag.current ? 'none' : 'transform .1s' }}>
-          <div style={{ perspective: '800px' }}>
+        // onMouseDown={startCanvasDrag}
+        // onTouchStart={startCanvasDrag}
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px 16px 0',
+          overflow: 'hidden',
+          position: 'relative',
+          minHeight: '220px',
+          cursor: canvasDrag.current ? 'grabbing' : 'default'
+        }}>
+        <div
+          style={{
+
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(ellipse 80% 80% at 50% 50%, ${tpl?.glow || 'rgba(212,168,79,0.1)'} 0%, transparent 70%)`,
+            pointerEvents: 'none'
+          }} />
+        <div
+          onMouseDown={startCanvasDrag}
+          onTouchStart={startCanvasDrag}
+          style={{
+            background: C.g,
+            boxShadow: `8px 8px 20px ${C.nd},-5px -5px 14px ${C.nl}`,
+            borderRadius: '20px',
+            padding: '10px',
+            border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`,
+            width: '100%',
+            maxWidth: '350px',
+            position: 'relative',
+            transform: `translate(${cardOffset.x}px,${cardOffset.y}px)`,
+            transition: canvasDrag.current ? 'none' : 'transform .1s'
+          }}
+        >
+          <div
+            style={{
+              perspective: '800px'
+            }}>
             <div
-              ref={cardRef}
+              ref={mobileCardRef}
               onClick={handleCardClick}
               onTouchEnd={handleCardClick}
-              onPointerUp={handleCardClick}
-              onMouseDown={e => e.stopPropagation()}
-              onTouchStart={e => e.stopPropagation()}
+              // onPointerUp={handleCardClick}
+              onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
+              onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -1564,42 +1940,184 @@ export default function BuilderPage() {
                 userSelect: 'none'
               }}
             >
-              <CardFront radius="16px" minH="220px" pad="20px" />
-              <CardBack radius="16px" minH="220px" pad="20px" />
+              <CardFront radius="12px" minH="220px" pad="16px" />
+              <CardBack radius="12px" minH="220px" pad="16px" />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', padding: '0 2px' }}>
-            <span style={{ fontSize: '9px', color: C.smoke }}><span style={{ color: C.gold, fontWeight: 700 }}>{tpl?.label}</span></span>
-            <span style={{ fontSize: '9px', color: C.smoke }}>{t.tapFlip}</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '8px',
+              padding: '0 2px'
+            }}>
+            <span
+              style={{
+                fontSize: '9px',
+                color: C.smoke
+              }}><span
+                style={{ color: C.gold, fontWeight: 700 }}>{tpl?.label}</span></span>
+            <button
+              type="button"
+              onClick={() => setIsFlipped(f => !f)}
+              style={{
+                fontSize: '9px',
+                color: C.smoke,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontFamily: "'DM Sans',sans-serif",
+                touchAction: 'manipulation'
+              }}
+            >
+              {t.tapFlip}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Bottom sheet */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30, background: C.g, borderRadius: '20px 20px 0 0', boxShadow: `0 -8px 32px ${C.nd}`, border: '1px solid rgba(255,255,255,0.04)', height: sheetHidden ? '44px' : `${sheetH}px`, display: 'flex', flexDirection: 'column', transition: sheetDragRef.current ? 'none' : 'height .2s' }}>
-        <div onTouchStart={onSheetDragStart} onTouchMove={onSheetDragMove} onTouchEnd={onSheetDragEnd}
-          style={{ padding: '14px 16px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab', flexShrink: 0, touchAction: 'none', minHeight: '44px', position: 'relative' }}>
-          <div style={{ width: '56px', height: '5px', borderRadius: '3px', background: C.smoke, opacity: .5 }} />
-          <button onClick={() => setSheetHidden(v => !v)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', width: '28px', height: '28px', borderRadius: '8px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(255,255,255,0.04)', color: C.smoke, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}>
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 30,
+        background: C.g,
+        borderRadius: '20px 20px 0 0',
+        boxShadow: `0 -8px 32px ${C.nd}`,
+        border: '1px solid rgba(255,255,255,0.04)',
+        height: sheetHidden ? '44px' : `${sheetH}px`,
+        display: 'flex',
+        flexDirection: 'column',
+        transition: sheetDragRef.current ? 'none' : 'height .2s'
+      }}>
+        <div
+          onTouchStart={onSheetDragStart}
+          onTouchMove={onSheetDragMove}
+          // onTouchEnd={onSheetDragEnd}
+          style={{
+            padding: '14px 16px 6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'grab',
+            flexShrink: 0,
+            touchAction: 'none',
+            minHeight: '44px',
+            position: 'relative'
+          }}>
+          <div
+            style={{
+              width: '56px',
+              height: '5px',
+              borderRadius: '3px',
+              background: C.smoke,
+              opacity: .5
+            }} />
+          <button
+            onClick={() => setSheetHidden(v => !v)}
+            style={{
+              position: 'absolute',
+              right: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              background: C.g,
+              boxShadow: raisedSm,
+              border: '1px solid rgba(255,255,255,0.04)',
+              color: C.smoke,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              touchAction: 'manipulation'
+            }}>
             {sheetHidden ? '↑' : '↓'}
           </button>
         </div>
         {!sheetHidden && (<>
-          <div style={{ display: 'flex', gap: '6px', padding: '0 12px 8px', flexShrink: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              padding: '0 12px 8px',
+              flexShrink: 0
+            }}>
             {MOBILE_TABS.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
-                style={{ flex: 1, padding: '8px 4px', borderRadius: '10px', border: 'none', background: activeTab === tab.id ? `rgba(212,168,79,0.1)` : C.g, boxShadow: activeTab === tab.id ? insetSm : raisedSm, color: activeTab === tab.id ? C.gold : C.smoke, fontSize: '9px', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', transition: 'all .15s' }}>
-                <span style={{ fontSize: '14px' }}>{tab.icon}</span>{tab.label}
+                style={{
+                  flex: 1,
+                  padding: '8px 4px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeTab === tab.id ? `rgba(212,168,79,0.1)` : C.g,
+                  boxShadow: activeTab === tab.id ? insetSm : raisedSm,
+                  color: activeTab === tab.id ? C.gold : C.smoke,
+                  fontSize: '9px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: "'DM Sans',sans-serif",
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  transition: 'all .15s'
+                }}>
+                <span
+                  style={{
+                    fontSize: '14px'
+                  }}>{tab.icon}</span>{tab.label}
               </button>
             ))}
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '0 12px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
             {activeTab === 'front' && (<>
-              <div style={{ fontSize: '9px', color: C.gold, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>{t.identity}</div>
-              <input style={nmInp} placeholder={t.fullName} value={form.fullName} onChange={e => set('fullName', e.target.value)} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                <input style={nmInp} placeholder={t.title} value={form.title} onChange={e => set('title', e.target.value)} />
-                <input style={nmInp} placeholder={t.company} value={form.company} onChange={e => set('company', e.target.value)} />
+              <div
+                style={{
+                  fontSize: '9px',
+                  color: C.gold,
+                  fontWeight: 700,
+                  letterSpacing: '.08em',
+                  textTransform: 'uppercase'
+                }}>{t.identity}</div>
+              <input
+                style={nmInp}
+                placeholder={t.fullName}
+                value={form.fullName}
+                onChange={e => set('fullName',
+                  e.target.value)} />
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '6px'
+                }}>
+                <input
+                  style={nmInp}
+                  placeholder={t.title}
+                  value={form.title}
+                  onChange={e => set('title',
+                    e.target.value)} />
+                <input
+                  style={nmInp}
+                  placeholder={t.company}
+                  value={form.company}
+                  onChange={e => set('company',
+                    e.target.value)} />
               </div>
               <input style={nmInp} placeholder={t.email} value={form.email} onChange={e => set('email', e.target.value)} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -1659,7 +2177,18 @@ export default function BuilderPage() {
                 <div style={{ display: 'flex', gap: '6px' }}>
                   {PHOTO_FRAMES.map(f => (
                     <button key={f.id} onClick={() => setPhotoFrame(f.id)} title={f.label}
-                      style={{ flex: 1, height: '36px', cursor: 'pointer', border: `2px solid ${photoFrame === f.id ? C.gold : 'rgba(255,255,255,0.06)'}`, background: photoFrame === f.id ? `rgba(212,168,79,0.1)` : C.g, boxShadow: photoFrame === f.id ? insetSm : raisedSm, ...f.style, transition: 'all .15s', fontSize: '9px', color: photoFrame === f.id ? C.gold : C.smoke, fontFamily: "'DM Sans',sans-serif" }}>
+                      style={{
+                        flex: 1,
+                        height: '36px',
+                        cursor: 'pointer',
+                        border: `2px solid ${photoFrame === f.id ? C.gold : 'rgba(255,255,255,0.06)'}`,
+                        background: photoFrame === f.id ? `rgba(212,168,79,0.1)` : C.g,
+                        boxShadow: photoFrame === f.id ? insetSm : raisedSm, ...f.style,
+                        transition: 'all .15s',
+                        fontSize: '9px',
+                        color: photoFrame === f.id ? C.gold : C.smoke,
+                        fontFamily: "'DM Sans',sans-serif"
+                      }}>
                       {f.label}
                     </button>
                   ))}
@@ -1822,19 +2351,47 @@ export default function BuilderPage() {
 
         {/* CARD CANVAS desktop */}
         <div
-          onMouseDown={startCanvasDrag}
-          onTouchStart={startCanvasDrag}
-          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', cursor: canvasDrag.current ? 'grabbing' : 'default' }}>
-          <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 60% 80% at 50% 50%, ${tpl?.glow || 'rgba(212,168,79,0.1)'} 0%, transparent 70%)`, pointerEvents: 'none' }} />
-          <div style={{ background: C.g, boxShadow: `12px 12px 30px ${C.nd},-7px -7px 20px ${C.nl}`, borderRadius: '24px', padding: '12px', border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`, width: '460px', maxWidth: '90%', position: 'relative', transform: `translate(${cardOffset.x}px,${cardOffset.y}px)`, transition: canvasDrag.current ? 'none' : 'transform .1s' }}>
+          // onMouseDown={startCanvasDrag}
+          // onTouchStart={startCanvasDrag}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            cursor: canvasDrag.current ? 'grabbing' : 'default'
+          }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `radial-gradient(ellipse 60% 80% at 50% 50%, ${tpl?.glow || 'rgba(212,168,79,0.1)'} 0%, transparent 70%)`,
+              pointerEvents: 'none'
+            }} />
+          <div
+            onMouseDown={startCanvasDrag}
+            onTouchStart={startCanvasDrag}
+            style={{
+              background: C.g,
+              boxShadow: `12px 12px 30px ${C.nd},-7px -7px 20px ${C.nl}`,
+              borderRadius: '24px',
+              padding: '12px',
+              border: `1px solid ${tpl?.border || 'rgba(212,168,79,0.15)'}`,
+              width: '460px',
+              maxWidth: '90%',
+              position: 'relative',
+              transform: `translate(${cardOffset.x}px,${cardOffset.y}px)`,
+              transition: canvasDrag.current ? 'none' : 'transform .1s'
+            }}>
             <div style={{ perspective: '1200px' }}>
               <div
-                ref={cardRef}
+                ref={desktopCardRef}
                 onClick={handleCardClick}
-                onTouchEnd={handleCardClick}
+                // onTouchEnd={handleCardClick}
                 onPointerUp={handleCardClick}
-                onMouseDown={e => e.stopPropagation()}
-                onTouchStart={e => e.stopPropagation()}
+                onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
+                onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
                 style={{
                   position: 'relative',
                   width: '100%',
@@ -1853,7 +2410,22 @@ export default function BuilderPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', padding: '0 4px' }}>
               <span style={{ fontSize: '10px', color: C.smoke }}><span style={{ color: C.gold, fontWeight: 700 }}>{tpl?.label}</span> · {(FONTS.find((f: any) => f.id === design.font) || FONTS[0] || { name: '' }).name}</span>
-              <span style={{ fontSize: '10px', color: C.smoke }}>{t.flipCard}</span>
+              <button
+                type="button"
+                onClick={() => setIsFlipped(f => !f)}
+                style={{
+                  fontSize: '10px',
+                  color: C.smoke,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontFamily: "'DM Sans',sans-serif",
+                  touchAction: 'manipulation'
+                }}
+              >
+                {t.flipCard}
+              </button>
             </div>
           </div>
           {existingCard && (
