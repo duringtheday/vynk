@@ -736,6 +736,8 @@ export default function BuilderPage() {
   const router = useRouter()
   const photoRef = useRef<HTMLInputElement>(null)
   const logoRef = useRef<HTMLInputElement>(null)
+  const photoElRef = useRef<HTMLDivElement>(null)
+  const logoElRef = useRef<HTMLDivElement>(null)
   const desktopCardRef = useRef<HTMLDivElement>(null)
   const mobileCardRef = useRef<HTMLDivElement>(null)
   const landscapeCardRef = useRef<HTMLDivElement>(null)
@@ -830,6 +832,32 @@ export default function BuilderPage() {
   }, [])
 
   useEffect(() => {
+    const photoEl = photoElRef.current
+    const logoEl = logoElRef.current
+
+    function onPhotoTouch(e: TouchEvent) {
+      e.stopPropagation()
+      if (photoEditMode === 'content') {
+        startPhotoInnerMode(e as unknown as React.TouchEvent)
+      } else {
+        startDrag(e as unknown as React.TouchEvent, 'photo')
+      }
+    }
+    function onLogoTouch(e: TouchEvent) {
+      e.stopPropagation()
+      startDrag(e as unknown as React.TouchEvent, 'logo')
+    }
+
+    photoEl?.addEventListener('touchstart', onPhotoTouch, { passive: false })
+    logoEl?.addEventListener('touchstart', onLogoTouch, { passive: false })
+
+    return () => {
+      photoEl?.removeEventListener('touchstart', onPhotoTouch)
+      logoEl?.removeEventListener('touchstart', onLogoTouch)
+    }
+  }, [photoEditMode, photoFrameScale, photoFrameRotate, photoScale, photoRotate, logoScale, logoRotate])
+
+  useEffect(() => {
     fetch('/api/cards').then(r => r.json()).then(d => {
       if (!d.card) return
       setExisting(d.card)
@@ -871,6 +899,8 @@ export default function BuilderPage() {
 
   function startDrag(e: React.MouseEvent | React.TouchEvent, type: 'photo' | 'logo') {
     e.stopPropagation()
+
+    if (!('touches' in e)) e.preventDefault()
 
     movedDuringGesture.current = false
 
@@ -1192,8 +1222,8 @@ export default function BuilderPage() {
         const p = getPoint(e)
         const dx = p.x - photoInnerDrag.current.mx
         const dy = p.y - photoInnerDrag.current.my
-        const nx = clampPercent(photoInnerDrag.current.ox - dx * 0.55)
-        const ny = clampPercent(photoInnerDrag.current.oy - dy * 0.55)
+        const nx = clampPercent(photoInnerDrag.current.ox + dx * 0.55)
+        const ny = clampPercent(photoInnerDrag.current.oy + dy * 0.55)
         setPhotoObjPos({ x: Number(nx.toFixed(2)), y: Number(ny.toFixed(2)) })
         if (Math.abs(dx) > 1 || Math.abs(dy) > 1) movedDuringGesture.current = true
         return
@@ -1294,6 +1324,7 @@ export default function BuilderPage() {
     pad = '32px' }: { radius?: string; minH?: string; pad?: string }) {
     return (
       <div
+        ref={photoElRef}
         style={{
           backfaceVisibility: 'hidden',
           WebkitBackfaceVisibility: 'hidden',
@@ -1337,12 +1368,22 @@ export default function BuilderPage() {
 
         {form.photoUrl && (
           <div
-            onPointerDown={e => {
+            onMouseDown={e => {
+              e.preventDefault()
               e.stopPropagation()
               if (photoEditMode === 'content') {
-                return
+                startPhotoInnerMode(e)
+              } else {
+                startDrag(e, 'photo')
               }
-              startDrag(e as unknown as React.MouseEvent | React.TouchEvent, 'photo')
+            }}
+            onTouchStart={e => {
+              e.stopPropagation()
+              if (photoEditMode === 'content') {
+                startPhotoInnerMode(e)
+              } else {
+                startDrag(e, 'photo')
+              }
             }}
             onDoubleClick={e => {
               e.preventDefault()
@@ -1409,9 +1450,15 @@ export default function BuilderPage() {
 
         {form.logoUrl && (
           <div
-            onPointerDown={e => {
+            ref={logoElRef}
+            onMouseDown={e => {
+              e.preventDefault()
               e.stopPropagation()
-              startDrag(e as unknown as React.MouseEvent | React.TouchEvent, 'logo')
+              startDrag(e, 'logo')
+            }}
+            onTouchStart={e => {
+              e.stopPropagation()
+              startDrag(e, 'logo')
             }}
             style={{
               position: 'absolute',
