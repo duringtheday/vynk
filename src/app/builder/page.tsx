@@ -1378,6 +1378,7 @@ export default function BuilderPage() {
               }
             }}
             onTouchStart={e => {
+              e.preventDefault()
               e.stopPropagation()
               if (photoEditMode === 'content') {
                 startPhotoInnerMode(e)
@@ -1457,6 +1458,7 @@ export default function BuilderPage() {
               startDrag(e, 'logo')
             }}
             onTouchStart={e => {
+              e.preventDefault()
               e.stopPropagation()
               startDrag(e, 'logo')
             }}
