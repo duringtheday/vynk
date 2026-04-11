@@ -740,11 +740,17 @@ export default function BuilderPage() {
   const mobileCardRef = useRef<HTMLDivElement>(null)
   const landscapeCardRef = useRef<HTMLDivElement>(null)
 
+  // Stable ref so the drag useEffect closure always reads current values
+  const isMobileRef = useRef(false)
+  const isLandscapeRef = useRef(false)
+
   const getActiveCardEl = () => {
-    if (isMobile && isLandscape) return landscapeCardRef.current
-    if (isMobile) return mobileCardRef.current
+    if (isMobileRef.current && isLandscapeRef.current) return landscapeCardRef.current
+    if (isMobileRef.current) return mobileCardRef.current
     return desktopCardRef.current
   }
+  const getActiveCardElRef = useRef(getActiveCardEl)
+  getActiveCardElRef.current = getActiveCardEl
 
   // ── i18n state — persisted in localStorage ──────────────────
   const [lang, setLang] = useState<'en' | 'es'>('en')
@@ -815,7 +821,11 @@ export default function BuilderPage() {
   ] as const
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
+    const check = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      isMobileRef.current = mobile
+    }
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -823,7 +833,9 @@ export default function BuilderPage() {
   useEffect(() => {
     const checkOri = () => {
       const land = window.innerWidth > window.innerHeight
-      setIsLandscape(land); if (land) setShowRotateHint(false)
+      setIsLandscape(land)
+      isLandscapeRef.current = land
+      if (land) setShowRotateHint(false)
     }
     checkOri(); window.addEventListener('resize', checkOri)
     return () => window.removeEventListener('resize', checkOri)
@@ -909,7 +921,7 @@ export default function BuilderPage() {
 
   useEffect(() => {
     function onMove(e: MouseEvent | TouchEvent) {
-      const activeCard = getActiveCardEl()
+      const activeCard = getActiveCardElRef.current()
       if (!dragging.current || !activeCard) return
       if ('cancelable' in e && e.cancelable) e.preventDefault()
 
@@ -986,7 +998,7 @@ export default function BuilderPage() {
       window.removeEventListener('touchend', onUp)
       window.removeEventListener('touchcancel', onUp)
     }
-  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
+  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -1356,6 +1368,7 @@ export default function BuilderPage() {
             }}
             onTouchStart={e => {
               e.stopPropagation()
+              if (e.cancelable) e.preventDefault()
               if (photoEditMode === 'content') {
                 startPhotoInnerMode(e)
               } else {
@@ -1434,6 +1447,7 @@ export default function BuilderPage() {
             }}
             onTouchStart={e => {
               e.stopPropagation()
+              if (e.cancelable) e.preventDefault()
               startDrag(e, 'logo')
             }}
             style={{
