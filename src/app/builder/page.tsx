@@ -967,11 +967,10 @@ export default function BuilderPage() {
       const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
 
-      // getBoundingClientRect works on all layouts including aspectRatio containers
+      // Use window dimensions as fallback — works on all screen sizes
       const activeCard = getActiveCardElRef.current()
-      const rect = activeCard?.getBoundingClientRect()
-      const w = (rect && rect.width > 0) ? rect.width : window.innerWidth * 0.85
-      const h = (rect && rect.height > 0) ? rect.height : window.innerHeight * 0.5
+      const w = (activeCard?.offsetWidth) || (activeCard?.getBoundingClientRect().width) || window.innerWidth * 0.85
+      const h = (activeCard?.offsetHeight) || (activeCard?.getBoundingClientRect().height) || window.innerHeight * 0.5
 
       const dx = ((clientX - dragStart.current.mx) / w) * 100
       const dy = ((clientY - dragStart.current.my) / h) * 100
@@ -1893,7 +1892,6 @@ export default function BuilderPage() {
         </div>
       </div>
     </div>
-  </div>
   )
 
   // ── PORTRAIT MOBILE ──────────────────────────────────────────
@@ -2036,6 +2034,13 @@ export default function BuilderPage() {
           </div>
           <DragOverlay />
           <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '8px',
+              padding: '0 2px'
+            }}>
             <span
               style={{
                 fontSize: '9px',
