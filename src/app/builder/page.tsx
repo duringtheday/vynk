@@ -1347,7 +1347,7 @@ export default function BuilderPage() {
       photoEl?.removeEventListener('touchstart', onPhotoTouch)
       logoEl?.removeEventListener('touchstart', onLogoTouch)
     }
-  }, []) // permanent — startDrag/startPhotoInnerMode read refs internally
+  }, [form.photoUrl, form.logoUrl]) // re-attach when images change so refs are populated
 
   function DragOverlay() {
     return (
@@ -1480,53 +1480,6 @@ export default function BuilderPage() {
             pointerEvents: 'none'
           }} />
 
-        {form.photoUrl && (
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: radius, overflow: 'hidden' }}>
-            <img
-              src={form.photoUrl}
-              alt="photo"
-              draggable={false}
-              style={{
-                position: 'absolute',
-                left: `${photoPos.x}%`,
-                top: `${photoPos.y}%`,
-                width: '64px',
-                height: '64px',
-                objectFit: 'cover',
-                objectPosition: `${photoObjPos.x}% ${photoObjPos.y}%`,
-                transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
-                transformOrigin: 'center center',
-                ...frameShape,
-                border: `2px solid ${design.accent}`,
-                boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
-                userSelect: 'none',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
-        )}
-
-        {form.logoUrl && (
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: radius, overflow: 'hidden' }}>
-            <img
-              src={form.logoUrl}
-              alt="logo"
-              draggable={false}
-              style={{
-                position: 'absolute',
-                left: `${logoPos.x}%`,
-                top: `${logoPos.y}%`,
-                height: '30px',
-                objectFit: 'contain',
-                transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
-                transformOrigin: 'top left',
-                filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
-                userSelect: 'none',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
-        )}
         <div
           style={{
             position: 'relative',
