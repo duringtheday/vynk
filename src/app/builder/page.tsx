@@ -936,11 +936,40 @@ export default function BuilderPage() {
       return { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI }
     }
 
+    function onTouchStart(e: TouchEvent) {
+      const el = (e.target as HTMLElement)?.closest('[data-drag]') as HTMLElement | null
+      if (!el) return
+      const type = el.getAttribute('data-drag') as 'photo' | 'logo'
+      if (!type) return
+      e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
+      movedDuringGesture.current = false
+
+      if (e.touches.length >= 2) {
+        const info = getTI(e.touches)
+        gestureStart.current = {
+          kind: type,
+          dist: info.dist, angle: info.angle,
+          startScale: type === 'photo' ? photoFrameScaleRef.current : logoScaleRef.current,
+          startRotate: type === 'photo' ? photoFrameRotateRef.current : logoRotateRef.current,
+        }
+        dragStart.current = null
+        dragging.current = type
+        setDragTick(n => n + 1)
+        return
+      }
+
+      const pos = type === 'photo' ? photoPosRef.current : logoPosRef.current
+      dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, ox: pos.x, oy: pos.y }
+      gestureStart.current = null
+      dragging.current = type
+      setDragTick(n => n + 1)
+    }
+
     function onMove(e: MouseEvent | TouchEvent) {
       if (!dragging.current) return
       if (e.cancelable) e.preventDefault()
 
-      // ── Pinch gesture (scale + rotate) ──
       if ('touches' in e && e.touches.length >= 2 && gestureStart.current) {
         const g = gestureStart.current
         const info = getTI(e.touches)
@@ -963,18 +992,14 @@ export default function BuilderPage() {
 
       if (!dragStart.current) return
 
-      // ── Single-finger / mouse drag (position) ──
       const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
-
-      // Use window dimensions as fallback — works on all screen sizes
       const activeCard = getActiveCardElRef.current()
-      const w = (activeCard?.offsetWidth) || (activeCard?.getBoundingClientRect().width) || window.innerWidth * 0.85
-      const h = (activeCard?.offsetHeight) || (activeCard?.getBoundingClientRect().height) || window.innerHeight * 0.5
+      const w = (activeCard?.offsetWidth) || window.innerWidth * 0.85
+      const h = (activeCard?.offsetHeight) || window.innerHeight * 0.5
 
       const dx = ((clientX - dragStart.current.mx) / w) * 100
       const dy = ((clientY - dragStart.current.my) / h) * 100
-
       const nx = Math.max(0, Math.min(100, dragStart.current.ox + dx))
       const ny = Math.max(0, Math.min(100, dragStart.current.oy + dy))
 
@@ -985,7 +1010,6 @@ export default function BuilderPage() {
         logoPosRef.current = { x: nx, y: ny }
         setLogoPos({ x: nx, y: ny })
       }
-
       if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) movedDuringGesture.current = true
     }
 
@@ -997,6 +1021,7 @@ export default function BuilderPage() {
       requestAnimationFrame(() => { movedDuringGesture.current = false })
     }
 
+    window.addEventListener('touchstart', onTouchStart, { passive: false })
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
@@ -1004,6 +1029,7 @@ export default function BuilderPage() {
     window.addEventListener('touchcancel', onUp)
 
     return () => {
+      window.removeEventListener('touchstart', onTouchStart)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       window.removeEventListener('touchmove', onMove as EventListener)
@@ -1320,41 +1346,13 @@ export default function BuilderPage() {
     tStr: t,
   }
 
-  // ── DragOverlay — lives OUTSIDE preserve-3d so z-index works on all devices ──
-  // Refs for non-passive touchstart (React synthetic onTouchStart is passive in Next.js)
-  const photoDragRef = useRef<HTMLDivElement>(null)
-  const logoDragRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const photoEl = photoDragRef.current
-    const logoEl = logoDragRef.current
-
-    function onPhotoTouch(e: TouchEvent) {
-      e.stopPropagation()
-      if (e.cancelable) e.preventDefault()
-      const re = e as unknown as React.TouchEvent
-      photoEditModeRef.current === 'content' ? startPhotoInnerMode(re) : startDrag(re, 'photo')
-    }
-    function onLogoTouch(e: TouchEvent) {
-      e.stopPropagation()
-      if (e.cancelable) e.preventDefault()
-      startDrag(e as unknown as React.TouchEvent, 'logo')
-    }
-
-    photoEl?.addEventListener('touchstart', onPhotoTouch, { passive: false })
-    logoEl?.addEventListener('touchstart', onLogoTouch, { passive: false })
-    return () => {
-      photoEl?.removeEventListener('touchstart', onPhotoTouch)
-      logoEl?.removeEventListener('touchstart', onLogoTouch)
-    }
-  }, [form.photoUrl, form.logoUrl]) // re-attach when images change so refs are populated
-
+  // ── DragOverlay — lives OUTSIDE preserve-3d, touch handled via window delegation ──
   function DragOverlay() {
     return (
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100 }}>
         {form.photoUrl && (
           <div
-            ref={photoDragRef}
+            data-drag="photo"
             onMouseDown={e => { e.preventDefault(); e.stopPropagation(); photoEditMode === 'content' ? startPhotoInnerMode(e) : startDrag(e, 'photo') }}
             onDoubleClick={e => { e.preventDefault(); e.stopPropagation(); setPhotoEditMode(m => m === 'frame' ? 'content' : 'frame') }}
             onWheel={handlePhotoWheel}
@@ -1402,7 +1400,7 @@ export default function BuilderPage() {
         )}
         {form.logoUrl && (
           <div
-            ref={logoDragRef}
+            data-drag="logo"
             onMouseDown={e => { e.preventDefault(); e.stopPropagation(); startDrag(e, 'logo') }}
             style={{
               position: 'absolute',
