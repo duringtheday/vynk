@@ -1318,6 +1318,91 @@ export default function BuilderPage() {
     tStr: t,
   }
 
+  // ── DragOverlay — lives OUTSIDE preserve-3d so z-index works on all devices ──
+  function DragOverlay() {
+    return (
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100 }}>
+        {form.photoUrl && (
+          <div
+            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); photoEditMode === 'content' ? startPhotoInnerMode(e) : startDrag(e, 'photo') }}
+            onTouchStart={e => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); photoEditMode === 'content' ? startPhotoInnerMode(e) : startDrag(e, 'photo') }}
+            onDoubleClick={e => { e.preventDefault(); e.stopPropagation(); setPhotoEditMode(m => m === 'frame' ? 'content' : 'frame') }}
+            onWheel={handlePhotoWheel}
+            style={{
+              position: 'absolute',
+              left: `${photoPos.x}%`,
+              top: `${photoPos.y}%`,
+              width: '64px',
+              height: '64px',
+              overflow: 'hidden',
+              cursor: photoEditMode === 'content' ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
+              transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
+              transformOrigin: 'center center',
+              ...frameShape,
+              border: `2px solid ${design.accent}`,
+              boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
+              touchAction: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+              pointerEvents: 'all',
+            }}
+          >
+            <img
+              src={form.photoUrl}
+              alt=""
+              draggable={false}
+              style={{
+                width: '100%', height: '100%', objectFit: 'cover',
+                objectPosition: `${photoObjPos.x}% ${photoObjPos.y}%`,
+                transform: `scale(${photoScale}) rotate(${photoRotate}deg)`,
+                transformOrigin: 'center center',
+                userSelect: 'none', pointerEvents: 'none',
+              }}
+            />
+            <div style={{
+              position: 'absolute', left: '50%', bottom: '3px',
+              transform: 'translateX(-50%)', padding: '1px 5px',
+              borderRadius: '999px', fontSize: '7px', fontWeight: 700,
+              background: 'rgba(0,0,0,0.5)', color: '#fff',
+              pointerEvents: 'none', whiteSpace: 'nowrap',
+            }}>
+              {photoEditMode === 'content' ? '✎' : '⤢'}
+            </div>
+          </div>
+        )}
+        {form.logoUrl && (
+          <div
+            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); startDrag(e, 'logo') }}
+            onTouchStart={e => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); startDrag(e, 'logo') }}
+            style={{
+              position: 'absolute',
+              left: `${logoPos.x}%`,
+              top: `${logoPos.y}%`,
+              cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
+              transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
+              transformOrigin: 'top left',
+              touchAction: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+              pointerEvents: 'all',
+            }}
+          >
+            <img
+              src={form.logoUrl}
+              alt=""
+              draggable={false}
+              style={{
+                height: '30px', objectFit: 'contain',
+                filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
+                pointerEvents: 'none', userSelect: 'none',
+              }}
+            />
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function CardFront({
     radius = '20px',
     minH = '300px',
@@ -1366,123 +1451,48 @@ export default function BuilderPage() {
           }} />
 
         {form.photoUrl && (
-          <div
-            onMouseDown={e => {
-              e.preventDefault()
-              e.stopPropagation()
-              if (photoEditMode === 'content') {
-                startPhotoInnerMode(e)
-              } else {
-                startDrag(e, 'photo')
-              }
-            }}
-            onTouchStart={e => {
-              e.stopPropagation()
-              if (e.cancelable) e.preventDefault()
-              if (photoEditMode === 'content') {
-                startPhotoInnerMode(e)
-              } else {
-                startDrag(e, 'photo')
-              }
-            }}
-            onDoubleClick={e => {
-              e.preventDefault()
-              e.stopPropagation()
-              setPhotoEditMode(m => (m === 'frame' ? 'content' : 'frame'))
-            }}
-            onWheel={handlePhotoWheel}
-            title={photoEditMode === 'content' ? 'Content mode' : 'Frame mode'}
-            style={{
-              position: 'absolute',
-              left: `${photoPos.x}%`,
-              top: `${photoPos.y}%`,
-              width: '64px',
-              height: '64px',
-              overflow: 'hidden',
-              cursor: photoEditMode === 'content' ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
-              zIndex: 50,
-              transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
-              transformOrigin: 'center center',
-              ...frameShape,
-              border: `2px solid ${design.accent}`,
-              boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
-              touchAction: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-            }}
-          >
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: radius, overflow: 'hidden' }}>
             <img
               src={form.photoUrl}
               alt="photo"
               draggable={false}
               style={{
-                width: '100%',
-                height: 'auto',
+                position: 'absolute',
+                left: `${photoPos.x}%`,
+                top: `${photoPos.y}%`,
+                width: '64px',
+                height: '64px',
                 objectFit: 'cover',
-                objectPosition: 'center center',
-                transform: `translate(${(photoObjPos.x - 50) * 1.2}%, ${(photoObjPos.y - 50) * 1.2}%) scale(${photoScale}) rotate(${photoRotate}deg)`,
+                objectPosition: `${photoObjPos.x}% ${photoObjPos.y}%`,
+                transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
                 transformOrigin: 'center center',
+                ...frameShape,
+                border: `2px solid ${design.accent}`,
+                boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
                 userSelect: 'none',
                 pointerEvents: 'none',
               }}
             />
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                bottom: '4px',
-                transform: 'translateX(-50%)',
-                padding: '2px 6px',
-                borderRadius: '999px',
-                fontSize: '8px',
-                fontWeight: 700,
-                background: 'rgba(0,0,0,0.45)',
-                color: '#fff',
-                pointerEvents: 'none',
-                border: '1px solid rgba(255,255,255,0.08)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {photoEditMode === 'content' ? 'Content' : 'Frame'}
-            </div>
           </div>
         )}
 
         {form.logoUrl && (
-          <div
-            onMouseDown={e => {
-              e.preventDefault()
-              e.stopPropagation()
-              startDrag(e, 'logo')
-            }}
-            onTouchStart={e => {
-              e.stopPropagation()
-              if (e.cancelable) e.preventDefault()
-              startDrag(e, 'logo')
-            }}
-            style={{
-              position: 'absolute',
-              left: `${logoPos.x}%`,
-              top: `${logoPos.y}%`,
-              cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
-              zIndex: 50,
-              transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
-              transformOrigin: 'top left',
-              touchAction: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-            }}
-          >
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: radius, overflow: 'hidden' }}>
             <img
               src={form.logoUrl}
               alt="logo"
               draggable={false}
               style={{
+                position: 'absolute',
+                left: `${logoPos.x}%`,
+                top: `${logoPos.y}%`,
                 height: '30px',
                 objectFit: 'contain',
+                transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
+                transformOrigin: 'top left',
                 filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
+                userSelect: 'none',
                 pointerEvents: 'none',
-                userSelect: 'none'
               }}
             />
           </div>
@@ -1843,8 +1853,8 @@ export default function BuilderPage() {
               <CardBack radius="12px" minH="220px" pad="16px" />
             </div>
           </div>
+          <DragOverlay />
         </div>
-        <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '5px', zIndex: 10 }}>
           <button onClick={() => setIsFlipped(f => !f)} style={{ width: '26px', height: '26px', borderRadius: '7px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(255,255,255,0.04)', color: C.smoke, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}>↻</button>
           <LangBtn style={{ width: '26px', padding: '4px 0', fontSize: '9px' }} />
           {existingCard && <a href={`/c/${existingCard.slug}`} style={{ width: '26px', height: '26px', borderRadius: '7px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(212,168,79,0.1)', color: C.gold, fontSize: '9px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, touchAction: 'manipulation' }}>→</a>}
@@ -1991,14 +2001,8 @@ export default function BuilderPage() {
               <CardBack radius="12px" minH="220px" pad="16px" />
             </div>
           </div>
+          <DragOverlay />
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginTop: '8px',
-              padding: '0 2px'
-            }}>
             <span
               style={{
                 fontSize: '9px',
@@ -2455,6 +2459,7 @@ export default function BuilderPage() {
                 <CardBack />
               </div>
             </div>
+            <DragOverlay />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', padding: '0 4px' }}>
               <span style={{ fontSize: '10px', color: C.smoke }}><span style={{ color: C.gold, fontWeight: 700 }}>{tpl?.label}</span> · {(FONTS.find((f: any) => f.id === design.font) || FONTS[0] || { name: '' }).name}</span>
               <button
