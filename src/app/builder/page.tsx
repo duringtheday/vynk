@@ -802,14 +802,26 @@ export default function BuilderPage() {
   const [logoScale, setLogoScale] = useState(1)
   const [logoRotate, setLogoRotate] = useState(0)
 
+  // Keep scale/rotate refs in sync whenever state changes
+  useEffect(() => { photoFrameScaleRef.current = photoFrameScale }, [photoFrameScale])
+  useEffect(() => { photoFrameRotateRef.current = photoFrameRotate }, [photoFrameRotate])
+  useEffect(() => { logoScaleRef.current = logoScale }, [logoScale])
+  useEffect(() => { logoRotateRef.current = logoRotate }, [logoRotate])
+
   // ── Photo/Logo inner-content pan (FIX #2) ───────────────────
   const [photoObjPos, setPhotoObjPos] = useState<Pos>({ x: 50, y: 50 })
   const [logoObjPos, setLogoObjPos] = useState<Pos>({ x: 50, y: 50 })
 
-  // ── Drag state stored in refs to avoid stale closures (FIX #1) ──
+  // ── Drag state — all in refs so listeners never need re-registration ──
   const dragging = useRef<'photo' | 'logo' | null>(null)
   const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
-  const [dragTick, setDragTick] = useState(0) // force re-render on drag
+  const [dragTick, setDragTick] = useState(0)
+
+  // Refs that mirror state so the permanent drag listener can read current values
+  const photoFrameScaleRef = useRef(1)
+  const photoFrameRotateRef = useRef(0)
+  const logoScaleRef = useRef(1)
+  const logoRotateRef = useRef(0)
 
   const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null)
 
@@ -884,13 +896,7 @@ export default function BuilderPage() {
 
   function startDrag(e: React.MouseEvent | React.TouchEvent, type: 'photo' | 'logo') {
     e.stopPropagation()
-
-    // Always prevent default for touch events on mobile
-    if ('touches' in e) {
-      e.preventDefault()
-    } else {
-      e.preventDefault()
-    }
+    if (e.cancelable) e.preventDefault()
 
     movedDuringGesture.current = false
 
@@ -900,8 +906,8 @@ export default function BuilderPage() {
         kind: type,
         dist: info.dist,
         angle: info.angle,
-        startScale: type === 'photo' ? photoFrameScale : logoScale,
-        startRotate: type === 'photo' ? photoFrameRotate : logoRotate,
+        startScale: type === 'photo' ? photoFrameScaleRef.current : logoScaleRef.current,
+        startRotate: type === 'photo' ? photoFrameRotateRef.current : logoRotateRef.current,
       }
       dragStart.current = null
       dragging.current = type
@@ -919,44 +925,53 @@ export default function BuilderPage() {
     setDragTick(n => n + 1)
   }
 
+  // ── Permanent drag listeners — registered once, never torn down ──
   useEffect(() => {
-    function onMove(e: MouseEvent | TouchEvent) {
-      const activeCard = getActiveCardElRef.current()
-      if (!dragging.current || !activeCard) return
-      if ('cancelable' in e && e.cancelable) e.preventDefault()
+    function getTI(touches: TouchList) {
+      const a = touches[0]; const b = touches[1]
+      if (!a || !b) return { dist: 0, angle: 0 }
+      const dx = b.clientX - a.clientX; const dy = b.clientY - a.clientY
+      return { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI }
+    }
 
+    function onMove(e: MouseEvent | TouchEvent) {
+      if (!dragging.current) return
+      if (e.cancelable) e.preventDefault()
+
+      // ── Pinch gesture (scale + rotate) ──
       if ('touches' in e && e.touches.length >= 2 && gestureStart.current) {
         const g = gestureStart.current
-        const info = getTouchesInfo(e.touches)
-
+        const info = getTI(e.touches)
         const nextScale = Math.max(0.2, Math.min(5, g.startScale * (info.dist / g.dist)))
         const nextRotate = g.startRotate + (info.angle - g.angle)
-
         if (g.kind === 'photo') {
+          photoFrameScaleRef.current = nextScale
+          photoFrameRotateRef.current = nextRotate
           setPhotoFrameScale(Number(nextScale.toFixed(3)))
           setPhotoFrameRotate(Number(nextRotate.toFixed(2)))
         } else {
+          logoScaleRef.current = nextScale
+          logoRotateRef.current = nextRotate
           setLogoScale(Number(nextScale.toFixed(3)))
           setLogoRotate(Number(nextRotate.toFixed(2)))
         }
-
         movedDuringGesture.current = true
         return
       }
 
       if (!dragStart.current) return
 
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      const rect = activeCard.getBoundingClientRect()
-      const layoutW = activeCard.offsetWidth || rect.width || 1
-      const layoutH = activeCard.offsetHeight || rect.height || 1
+      // ── Single-finger / mouse drag (position) ──
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
 
-      const scaleX = rect.width / layoutW || 1
-      const scaleY = rect.height / layoutH || 1
+      // Use window dimensions as fallback — works on all screen sizes
+      const activeCard = getActiveCardElRef.current()
+      const w = (activeCard?.offsetWidth) || (activeCard?.getBoundingClientRect().width) || window.innerWidth * 0.85
+      const h = (activeCard?.offsetHeight) || (activeCard?.getBoundingClientRect().height) || window.innerHeight * 0.5
 
-      const dx = ((clientX - dragStart.current.mx) / scaleX / layoutW) * 100
-      const dy = ((clientY - dragStart.current.my) / scaleY / layoutH) * 100
+      const dx = ((clientX - dragStart.current.mx) / w) * 100
+      const dy = ((clientY - dragStart.current.my) / h) * 100
 
       const nx = Math.max(0, Math.min(100, dragStart.current.ox + dx))
       const ny = Math.max(0, Math.min(100, dragStart.current.oy + dy))
@@ -969,9 +984,7 @@ export default function BuilderPage() {
         setLogoPos({ x: nx, y: ny })
       }
 
-      if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) {
-        movedDuringGesture.current = true
-      }
+      if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) movedDuringGesture.current = true
     }
 
     function onUp() {
@@ -979,10 +992,7 @@ export default function BuilderPage() {
       dragStart.current = null
       gestureStart.current = null
       setDragTick(n => n + 1)
-
-      requestAnimationFrame(() => {
-        movedDuringGesture.current = false
-      })
+      requestAnimationFrame(() => { movedDuringGesture.current = false })
     }
 
     window.addEventListener('mousemove', onMove)
@@ -998,7 +1008,7 @@ export default function BuilderPage() {
       window.removeEventListener('touchend', onUp)
       window.removeEventListener('touchcancel', onUp)
     }
-  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate])
+  }, []) // ← empty: registered once, reads everything via refs
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
