@@ -873,7 +873,12 @@ export default function BuilderPage() {
   function startDrag(e: React.MouseEvent | React.TouchEvent, type: 'photo' | 'logo') {
     e.stopPropagation()
 
-    if (!('touches' in e)) e.preventDefault()
+    // Always prevent default for touch events on mobile
+    if ('touches' in e) {
+      e.preventDefault()
+    } else {
+      e.preventDefault()
+    }
 
     movedDuringGesture.current = false
 
