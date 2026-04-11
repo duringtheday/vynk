@@ -736,8 +736,6 @@ export default function BuilderPage() {
   const router = useRouter()
   const photoRef = useRef<HTMLInputElement>(null)
   const logoRef = useRef<HTMLInputElement>(null)
-  const photoElRef = useRef<HTMLDivElement>(null)
-  const logoElRef = useRef<HTMLDivElement>(null)
   const desktopCardRef = useRef<HTMLDivElement>(null)
   const mobileCardRef = useRef<HTMLDivElement>(null)
   const landscapeCardRef = useRef<HTMLDivElement>(null)
@@ -831,31 +829,6 @@ export default function BuilderPage() {
     return () => window.removeEventListener('resize', checkOri)
   }, [])
 
-  useEffect(() => {
-    const photoEl = photoElRef.current
-    const logoEl = logoElRef.current
-
-    function onPhotoTouch(e: TouchEvent) {
-      e.stopPropagation()
-      if (photoEditMode === 'content') {
-        startPhotoInnerMode(e as unknown as React.TouchEvent)
-      } else {
-        startDrag(e as unknown as React.TouchEvent, 'photo')
-      }
-    }
-    function onLogoTouch(e: TouchEvent) {
-      e.stopPropagation()
-      startDrag(e as unknown as React.TouchEvent, 'logo')
-    }
-
-    photoEl?.addEventListener('touchstart', onPhotoTouch, { passive: false })
-    logoEl?.addEventListener('touchstart', onLogoTouch, { passive: false })
-
-    return () => {
-      photoEl?.removeEventListener('touchstart', onPhotoTouch)
-      logoEl?.removeEventListener('touchstart', onLogoTouch)
-    }
-  }, [photoEditMode, photoFrameScale, photoFrameRotate, photoScale, photoRotate, logoScale, logoRotate])
 
   useEffect(() => {
     fetch('/api/cards').then(r => r.json()).then(d => {
@@ -1324,7 +1297,6 @@ export default function BuilderPage() {
     pad = '32px' }: { radius?: string; minH?: string; pad?: string }) {
     return (
       <div
-        ref={photoElRef}
         style={{
           backfaceVisibility: 'hidden',
           WebkitBackfaceVisibility: 'hidden',
@@ -1378,7 +1350,6 @@ export default function BuilderPage() {
               }
             }}
             onTouchStart={e => {
-              e.preventDefault()
               e.stopPropagation()
               if (photoEditMode === 'content') {
                 startPhotoInnerMode(e)
@@ -1451,14 +1422,12 @@ export default function BuilderPage() {
 
         {form.logoUrl && (
           <div
-            ref={logoElRef}
             onMouseDown={e => {
               e.preventDefault()
               e.stopPropagation()
               startDrag(e, 'logo')
             }}
             onTouchStart={e => {
-              e.preventDefault()
               e.stopPropagation()
               startDrag(e, 'logo')
             }}
