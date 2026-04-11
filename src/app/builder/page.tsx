@@ -739,9 +739,6 @@ export default function BuilderPage() {
   const desktopCardRef = useRef<HTMLDivElement>(null)
   const mobileCardRef = useRef<HTMLDivElement>(null)
   const landscapeCardRef = useRef<HTMLDivElement>(null)
-  // Non-passive touchstart refs for photo/logo drag on desktop (touchscreen laptops)
-  const photoDragRef = useRef<HTMLDivElement>(null)
-  const logoDragRef = useRef<HTMLDivElement>(null)
 
   const getActiveCardEl = () => {
     if (isMobile && isLandscape) return landscapeCardRef.current
@@ -796,8 +793,6 @@ export default function BuilderPage() {
   const [photoRotate, setPhotoRotate] = useState(0)
   type PhotoEditMode = 'frame' | 'content'
   const [photoEditMode, setPhotoEditMode] = useState<PhotoEditMode>('frame')
-  const photoEditModeRef = useRef<PhotoEditMode>('frame')
-  useEffect(() => { photoEditModeRef.current = photoEditMode }, [photoEditMode])
   const [logoScale, setLogoScale] = useState(1)
   const [logoRotate, setLogoRotate] = useState(0)
 
@@ -941,15 +936,18 @@ export default function BuilderPage() {
 
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      const rect = activeCard.getBoundingClientRect()
-      const layoutW = activeCard.offsetWidth || rect.width || 1
-      const layoutH = activeCard.offsetHeight || rect.height || 1
+      // getBoundingClientRect is reliable; fall back to parent if this element
+      // has no height (e.g. preserve-3d wrapper with height:'100%' and no min-height)
+      let rect = activeCard.getBoundingClientRect()
+      if (rect.width < 10 || rect.height < 10) {
+        const parentRect = activeCard.parentElement?.getBoundingClientRect()
+        if (parentRect && parentRect.width > 10) rect = parentRect
+      }
+      const w = rect.width > 0 ? rect.width : 1
+      const h = rect.height > 0 ? rect.height : 1
 
-      const scaleX = rect.width / layoutW || 1
-      const scaleY = rect.height / layoutH || 1
-
-      const dx = ((clientX - dragStart.current.mx) / scaleX / layoutW) * 100
-      const dy = ((clientY - dragStart.current.my) / scaleY / layoutH) * 100
+      const dx = ((clientX - dragStart.current.mx) / w) * 100
+      const dy = ((clientY - dragStart.current.my) / h) * 100
 
       const nx = Math.max(0, Math.min(100, dragStart.current.ox + dx))
       const ny = Math.max(0, Math.min(100, dragStart.current.oy + dy))
@@ -992,39 +990,6 @@ export default function BuilderPage() {
       window.removeEventListener('touchcancel', onUp)
     }
   }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
-
-  // ── Non-passive touchstart for photo/logo drag on desktop (touchscreen laptops) ──
-  // React's synthetic onTouchStart is passive in React 17+, so preventDefault() is
-  // silently ignored. We register directly with { passive: false } to fix drag on
-  // small laptop viewports that fire touch events.
-  useEffect(() => {
-    const photoEl = photoDragRef.current
-    const logoEl = logoDragRef.current
-    if (!photoEl && !logoEl) return
-
-    function onPhotoTouch(e: TouchEvent) {
-      e.stopPropagation()
-      if (e.cancelable) e.preventDefault()
-      const re = e as unknown as React.TouchEvent
-      if (photoEditModeRef.current === 'content') {
-        startPhotoInnerMode(re)
-      } else {
-        startDrag(re, 'photo')
-      }
-    }
-    function onLogoTouch(e: TouchEvent) {
-      e.stopPropagation()
-      if (e.cancelable) e.preventDefault()
-      startDrag(e as unknown as React.TouchEvent, 'logo')
-    }
-
-    photoEl?.addEventListener('touchstart', onPhotoTouch, { passive: false })
-    logoEl?.addEventListener('touchstart', onLogoTouch, { passive: false })
-    return () => {
-      photoEl?.removeEventListener('touchstart', onPhotoTouch)
-      logoEl?.removeEventListener('touchstart', onLogoTouch)
-    }
-  }) // no dep array — re-registers whenever CardFront re-renders and refs update
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -1383,9 +1348,16 @@ export default function BuilderPage() {
 
         {form.photoUrl && (
           <div
-            ref={photoDragRef}
             onMouseDown={e => {
               e.preventDefault()
+              e.stopPropagation()
+              if (photoEditMode === 'content') {
+                startPhotoInnerMode(e)
+              } else {
+                startDrag(e, 'photo')
+              }
+            }}
+            onTouchStart={e => {
               e.stopPropagation()
               if (photoEditMode === 'content') {
                 startPhotoInnerMode(e)
@@ -1458,9 +1430,12 @@ export default function BuilderPage() {
 
         {form.logoUrl && (
           <div
-            ref={logoDragRef}
             onMouseDown={e => {
               e.preventDefault()
+              e.stopPropagation()
+              startDrag(e, 'logo')
+            }}
+            onTouchStart={e => {
               e.stopPropagation()
               startDrag(e, 'logo')
             }}
