@@ -793,6 +793,8 @@ export default function BuilderPage() {
   const [photoRotate, setPhotoRotate] = useState(0)
   type PhotoEditMode = 'frame' | 'content'
   const [photoEditMode, setPhotoEditMode] = useState<PhotoEditMode>('frame')
+  const photoEditModeRef = useRef<PhotoEditMode>('frame')
+  useEffect(() => { photoEditModeRef.current = photoEditMode }, [photoEditMode])
   const [logoScale, setLogoScale] = useState(1)
   const [logoRotate, setLogoRotate] = useState(0)
 
@@ -936,12 +938,10 @@ export default function BuilderPage() {
 
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      // getBoundingClientRect is reliable; fall back to parent if this element
-      // has no height (e.g. preserve-3d wrapper with height:'100%' and no min-height)
       let rect = activeCard.getBoundingClientRect()
       if (rect.width < 10 || rect.height < 10) {
-        const parentRect = activeCard.parentElement?.getBoundingClientRect()
-        if (parentRect && parentRect.width > 10) rect = parentRect
+        const pr = activeCard.parentElement?.getBoundingClientRect()
+        if (pr && pr.width > 10) rect = pr
       }
       const w = rect.width > 0 ? rect.width : 1
       const h = rect.height > 0 ? rect.height : 1
@@ -990,6 +990,41 @@ export default function BuilderPage() {
       window.removeEventListener('touchcancel', onUp)
     }
   }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
+
+  // ── Non-passive delegated touchstart for photo/logo drag ────────────────────
+  // React synthetic onTouchStart is passive → preventDefault() silently fails.
+  // We listen on the stable card refs and delegate via data-drag attribute.
+  useEffect(() => {
+    const cards = [
+      desktopCardRef.current,
+      mobileCardRef.current,
+      landscapeCardRef.current,
+    ].filter(Boolean) as HTMLDivElement[]
+
+    function onTouch(e: TouchEvent) {
+      const target = e.target as HTMLElement | null
+      const dragEl = target?.closest<HTMLElement>('[data-drag]')
+      if (!dragEl) return
+      e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
+      const kind = dragEl.dataset.drag as 'photo' | 'logo'
+      const re = e as unknown as React.TouchEvent
+      if (kind === 'photo') {
+        if (photoEditModeRef.current === 'content') {
+          startPhotoInnerMode(re)
+        } else {
+          startDrag(re, 'photo')
+        }
+      } else {
+        startDrag(re, 'logo')
+      }
+    }
+
+    cards.forEach(el => el.addEventListener('touchstart', onTouch, { passive: false }))
+    return () => {
+      cards.forEach(el => el.removeEventListener('touchstart', onTouch))
+    }
+  }, [isMobile, isLandscape])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -1348,16 +1383,9 @@ export default function BuilderPage() {
 
         {form.photoUrl && (
           <div
+            data-drag="photo"
             onMouseDown={e => {
               e.preventDefault()
-              e.stopPropagation()
-              if (photoEditMode === 'content') {
-                startPhotoInnerMode(e)
-              } else {
-                startDrag(e, 'photo')
-              }
-            }}
-            onTouchStart={e => {
               e.stopPropagation()
               if (photoEditMode === 'content') {
                 startPhotoInnerMode(e)
@@ -1430,12 +1458,9 @@ export default function BuilderPage() {
 
         {form.logoUrl && (
           <div
+            data-drag="logo"
             onMouseDown={e => {
               e.preventDefault()
-              e.stopPropagation()
-              startDrag(e, 'logo')
-            }}
-            onTouchStart={e => {
               e.stopPropagation()
               startDrag(e, 'logo')
             }}
