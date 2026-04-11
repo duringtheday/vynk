@@ -799,6 +799,8 @@ export default function BuilderPage() {
   const [photoRotate, setPhotoRotate] = useState(0)
   type PhotoEditMode = 'frame' | 'content'
   const [photoEditMode, setPhotoEditMode] = useState<PhotoEditMode>('frame')
+  const photoEditModeRef = useRef<PhotoEditMode>('frame')
+  useEffect(() => { photoEditModeRef.current = photoEditMode }, [photoEditMode])
   const [logoScale, setLogoScale] = useState(1)
   const [logoRotate, setLogoRotate] = useState(0)
 
@@ -1319,13 +1321,41 @@ export default function BuilderPage() {
   }
 
   // ── DragOverlay — lives OUTSIDE preserve-3d so z-index works on all devices ──
+  // Refs for non-passive touchstart (React synthetic onTouchStart is passive in Next.js)
+  const photoDragRef = useRef<HTMLDivElement>(null)
+  const logoDragRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const photoEl = photoDragRef.current
+    const logoEl = logoDragRef.current
+
+    function onPhotoTouch(e: TouchEvent) {
+      e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
+      const re = e as unknown as React.TouchEvent
+      photoEditModeRef.current === 'content' ? startPhotoInnerMode(re) : startDrag(re, 'photo')
+    }
+    function onLogoTouch(e: TouchEvent) {
+      e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
+      startDrag(e as unknown as React.TouchEvent, 'logo')
+    }
+
+    photoEl?.addEventListener('touchstart', onPhotoTouch, { passive: false })
+    logoEl?.addEventListener('touchstart', onLogoTouch, { passive: false })
+    return () => {
+      photoEl?.removeEventListener('touchstart', onPhotoTouch)
+      logoEl?.removeEventListener('touchstart', onLogoTouch)
+    }
+  }, []) // permanent — startDrag/startPhotoInnerMode read refs internally
+
   function DragOverlay() {
     return (
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100 }}>
         {form.photoUrl && (
           <div
+            ref={photoDragRef}
             onMouseDown={e => { e.preventDefault(); e.stopPropagation(); photoEditMode === 'content' ? startPhotoInnerMode(e) : startDrag(e, 'photo') }}
-            onTouchStart={e => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); photoEditMode === 'content' ? startPhotoInnerMode(e) : startDrag(e, 'photo') }}
             onDoubleClick={e => { e.preventDefault(); e.stopPropagation(); setPhotoEditMode(m => m === 'frame' ? 'content' : 'frame') }}
             onWheel={handlePhotoWheel}
             style={{
@@ -1372,8 +1402,8 @@ export default function BuilderPage() {
         )}
         {form.logoUrl && (
           <div
+            ref={logoDragRef}
             onMouseDown={e => { e.preventDefault(); e.stopPropagation(); startDrag(e, 'logo') }}
-            onTouchStart={e => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); startDrag(e, 'logo') }}
             style={{
               position: 'absolute',
               left: `${logoPos.x}%`,
@@ -1855,6 +1885,7 @@ export default function BuilderPage() {
           </div>
           <DragOverlay />
         </div>
+        <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '5px', zIndex: 10 }}>
           <button onClick={() => setIsFlipped(f => !f)} style={{ width: '26px', height: '26px', borderRadius: '7px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(255,255,255,0.04)', color: C.smoke, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}>↻</button>
           <LangBtn style={{ width: '26px', padding: '4px 0', fontSize: '9px' }} />
           {existingCard && <a href={`/c/${existingCard.slug}`} style={{ width: '26px', height: '26px', borderRadius: '7px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(212,168,79,0.1)', color: C.gold, fontSize: '9px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, touchAction: 'manipulation' }}>→</a>}
