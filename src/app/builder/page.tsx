@@ -1471,7 +1471,7 @@ export default function BuilderPage() {
               cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
               zIndex: 50,
               transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
-              transformOrigin: 'top left',
+              transformOrigin: 'center center',
               touchAction: 'none',
               WebkitUserSelect: 'none',
               userSelect: 'none',
