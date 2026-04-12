@@ -991,9 +991,9 @@ export default function BuilderPage() {
     }
   }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
 
-  // ── Non-passive delegated touchstart for photo/logo drag ──────────────────
+  // ── Non-passive delegated touchstart for photo/logo drag ────────────────────
   // React synthetic onTouchStart is passive → preventDefault() silently fails.
-  // Listen on stable card refs and delegate via data-drag attribute.
+  // We listen on the stable card refs and delegate via data-drag attribute.
   useEffect(() => {
     const cards = [
       desktopCardRef.current,
@@ -1002,23 +1002,28 @@ export default function BuilderPage() {
     ].filter(Boolean) as HTMLDivElement[]
 
     function onTouch(e: TouchEvent) {
-      const dragEl = (e.target as HTMLElement)?.closest<HTMLElement>('[data-drag]')
+      const target = e.target as HTMLElement | null
+      const dragEl = target?.closest<HTMLElement>('[data-drag]')
       if (!dragEl) return
       e.stopPropagation()
       if (e.cancelable) e.preventDefault()
       const kind = dragEl.dataset.drag as 'photo' | 'logo'
       const re = e as unknown as React.TouchEvent
       if (kind === 'photo') {
-        photoEditModeRef.current === 'content'
-          ? startPhotoInnerMode(re)
-          : startDrag(re, 'photo')
+        if (photoEditModeRef.current === 'content') {
+          startPhotoInnerMode(re)
+        } else {
+          startDrag(re, 'photo')
+        }
       } else {
         startDrag(re, 'logo')
       }
     }
 
     cards.forEach(el => el.addEventListener('touchstart', onTouch, { passive: false }))
-    return () => cards.forEach(el => el.removeEventListener('touchstart', onTouch))
+    return () => {
+      cards.forEach(el => el.removeEventListener('touchstart', onTouch))
+    }
   }, [isMobile, isLandscape])
 
   function onSheetDragStart(e: React.TouchEvent) {
@@ -1465,8 +1470,8 @@ export default function BuilderPage() {
               top: `${logoPos.y}%`,
               cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
               zIndex: 50,
-              transform: `translate(-50%, -50%) scale(${logoScale}) rotate(${logoRotate}deg)`,
-              transformOrigin: 'center center',
+              transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
+              transformOrigin: 'top left',
               touchAction: 'none',
               WebkitUserSelect: 'none',
               userSelect: 'none',
@@ -1825,7 +1830,7 @@ export default function BuilderPage() {
               // onTouchEnd={handleCardClick}
               // onPointerUp={handleCardClick}
               onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
-              onTouchStart={e => { if (!dragging.current && !(e.target as HTMLElement).closest('[data-drag]')) e.stopPropagation() }}
+              onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -1973,7 +1978,7 @@ export default function BuilderPage() {
               onTouchEnd={handleCardClick}
               // onPointerUp={handleCardClick}
               onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
-              onTouchStart={e => { if (!dragging.current && !(e.target as HTMLElement).closest('[data-drag]')) e.stopPropagation() }}
+              onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -2437,7 +2442,7 @@ export default function BuilderPage() {
                 // onTouchEnd={handleCardClick}
                 onPointerUp={handleCardClick}
                 onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
-                onTouchStart={e => { if (!dragging.current && !(e.target as HTMLElement).closest('[data-drag]')) e.stopPropagation() }}
+                onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
                 style={{
                   position: 'relative',
                   width: '100%',
