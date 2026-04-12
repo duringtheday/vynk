@@ -991,13 +991,21 @@ export default function BuilderPage() {
     }
   }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
 
-  // ── Non-passive touchstart for photo/logo drag ────────────────────────────
+  // ── Non-passive delegated touchstart for photo/logo drag ──────────────────
+  // React synthetic onTouchStart is passive → preventDefault() silently fails.
+  // Listen on stable card refs and delegate via data-drag attribute.
   useEffect(() => {
+    const cards = [
+      desktopCardRef.current,
+      mobileCardRef.current,
+      landscapeCardRef.current,
+    ].filter(Boolean) as HTMLDivElement[]
+
     function onTouch(e: TouchEvent) {
       const dragEl = (e.target as HTMLElement)?.closest<HTMLElement>('[data-drag]')
       if (!dragEl) return
-      if (e.cancelable) e.preventDefault()
       e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
       const kind = dragEl.dataset.drag as 'photo' | 'logo'
       const re = e as unknown as React.TouchEvent
       if (kind === 'photo') {
@@ -1008,9 +1016,10 @@ export default function BuilderPage() {
         startDrag(re, 'logo')
       }
     }
-    window.addEventListener('touchstart', onTouch, { passive: false })
-    return () => window.removeEventListener('touchstart', onTouch)
-  }, [])
+
+    cards.forEach(el => el.addEventListener('touchstart', onTouch, { passive: false }))
+    return () => cards.forEach(el => el.removeEventListener('touchstart', onTouch))
+  }, [isMobile, isLandscape])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -1816,7 +1825,7 @@ export default function BuilderPage() {
               // onTouchEnd={handleCardClick}
               // onPointerUp={handleCardClick}
               onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
-              onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
+              onTouchStart={e => { if (!dragging.current && !(e.target as HTMLElement).closest('[data-drag]')) e.stopPropagation() }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -1964,7 +1973,7 @@ export default function BuilderPage() {
               onTouchEnd={handleCardClick}
               // onPointerUp={handleCardClick}
               onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
-              onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
+              onTouchStart={e => { if (!dragging.current && !(e.target as HTMLElement).closest('[data-drag]')) e.stopPropagation() }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -2428,7 +2437,7 @@ export default function BuilderPage() {
                 // onTouchEnd={handleCardClick}
                 onPointerUp={handleCardClick}
                 onMouseDown={e => { if (!dragging.current) e.stopPropagation() }}
-                onTouchStart={e => { if (!dragging.current) e.stopPropagation() }}
+                onTouchStart={e => { if (!dragging.current && !(e.target as HTMLElement).closest('[data-drag]')) e.stopPropagation() }}
                 style={{
                   position: 'relative',
                   width: '100%',
