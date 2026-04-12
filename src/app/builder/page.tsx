@@ -740,17 +740,11 @@ export default function BuilderPage() {
   const mobileCardRef = useRef<HTMLDivElement>(null)
   const landscapeCardRef = useRef<HTMLDivElement>(null)
 
-  // Stable ref so the drag useEffect closure always reads current values
-  const isMobileRef = useRef(false)
-  const isLandscapeRef = useRef(false)
-
   const getActiveCardEl = () => {
-    if (isMobileRef.current && isLandscapeRef.current) return landscapeCardRef.current
-    if (isMobileRef.current) return mobileCardRef.current
+    if (isMobile && isLandscape) return landscapeCardRef.current
+    if (isMobile) return mobileCardRef.current
     return desktopCardRef.current
   }
-  const getActiveCardElRef = useRef(getActiveCardEl)
-  getActiveCardElRef.current = getActiveCardEl
 
   // ── i18n state — persisted in localStorage ──────────────────
   const [lang, setLang] = useState<'en' | 'es'>('en')
@@ -804,26 +798,14 @@ export default function BuilderPage() {
   const [logoScale, setLogoScale] = useState(1)
   const [logoRotate, setLogoRotate] = useState(0)
 
-  // Keep scale/rotate refs in sync whenever state changes
-  useEffect(() => { photoFrameScaleRef.current = photoFrameScale }, [photoFrameScale])
-  useEffect(() => { photoFrameRotateRef.current = photoFrameRotate }, [photoFrameRotate])
-  useEffect(() => { logoScaleRef.current = logoScale }, [logoScale])
-  useEffect(() => { logoRotateRef.current = logoRotate }, [logoRotate])
-
   // ── Photo/Logo inner-content pan (FIX #2) ───────────────────
   const [photoObjPos, setPhotoObjPos] = useState<Pos>({ x: 50, y: 50 })
   const [logoObjPos, setLogoObjPos] = useState<Pos>({ x: 50, y: 50 })
 
-  // ── Drag state — all in refs so listeners never need re-registration ──
+  // ── Drag state stored in refs to avoid stale closures (FIX #1) ──
   const dragging = useRef<'photo' | 'logo' | null>(null)
   const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null)
-  const [dragTick, setDragTick] = useState(0)
-
-  // Refs that mirror state so the permanent drag listener can read current values
-  const photoFrameScaleRef = useRef(1)
-  const photoFrameRotateRef = useRef(0)
-  const logoScaleRef = useRef(1)
-  const logoRotateRef = useRef(0)
+  const [dragTick, setDragTick] = useState(0) // force re-render on drag
 
   const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null)
 
@@ -835,11 +817,7 @@ export default function BuilderPage() {
   ] as const
 
   useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth < 768
-      setIsMobile(mobile)
-      isMobileRef.current = mobile
-    }
+    const check = () => setIsMobile(window.innerWidth < 768)
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -847,9 +825,7 @@ export default function BuilderPage() {
   useEffect(() => {
     const checkOri = () => {
       const land = window.innerWidth > window.innerHeight
-      setIsLandscape(land)
-      isLandscapeRef.current = land
-      if (land) setShowRotateHint(false)
+      setIsLandscape(land); if (land) setShowRotateHint(false)
     }
     checkOri(); window.addEventListener('resize', checkOri)
     return () => window.removeEventListener('resize', checkOri)
@@ -898,7 +874,13 @@ export default function BuilderPage() {
 
   function startDrag(e: React.MouseEvent | React.TouchEvent, type: 'photo' | 'logo') {
     e.stopPropagation()
-    if (e.cancelable) e.preventDefault()
+
+    // Always prevent default for touch events on mobile
+    if ('touches' in e) {
+      e.preventDefault()
+    } else {
+      e.preventDefault()
+    }
 
     movedDuringGesture.current = false
 
@@ -908,8 +890,8 @@ export default function BuilderPage() {
         kind: type,
         dist: info.dist,
         angle: info.angle,
-        startScale: type === 'photo' ? photoFrameScaleRef.current : logoScaleRef.current,
-        startRotate: type === 'photo' ? photoFrameRotateRef.current : logoRotateRef.current,
+        startScale: type === 'photo' ? photoFrameScale : logoScale,
+        startRotate: type === 'photo' ? photoFrameRotate : logoRotate,
       }
       dragStart.current = null
       dragging.current = type
@@ -927,79 +909,46 @@ export default function BuilderPage() {
     setDragTick(n => n + 1)
   }
 
-  // ── Permanent drag listeners — registered once, never torn down ──
   useEffect(() => {
-    function getTI(touches: TouchList) {
-      const a = touches[0]; const b = touches[1]
-      if (!a || !b) return { dist: 0, angle: 0 }
-      const dx = b.clientX - a.clientX; const dy = b.clientY - a.clientY
-      return { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI }
-    }
-
-    function onTouchStart(e: TouchEvent) {
-      const el = (e.target as HTMLElement)?.closest('[data-drag]') as HTMLElement | null
-      if (!el) return
-      const type = el.getAttribute('data-drag') as 'photo' | 'logo'
-      if (!type) return
-      e.stopPropagation()
-      if (e.cancelable) e.preventDefault()
-      movedDuringGesture.current = false
-
-      if (e.touches.length >= 2) {
-        const info = getTI(e.touches)
-        gestureStart.current = {
-          kind: type,
-          dist: info.dist, angle: info.angle,
-          startScale: type === 'photo' ? photoFrameScaleRef.current : logoScaleRef.current,
-          startRotate: type === 'photo' ? photoFrameRotateRef.current : logoRotateRef.current,
-        }
-        dragStart.current = null
-        dragging.current = type
-        setDragTick(n => n + 1)
-        return
-      }
-
-      const pos = type === 'photo' ? photoPosRef.current : logoPosRef.current
-      dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, ox: pos.x, oy: pos.y }
-      gestureStart.current = null
-      dragging.current = type
-      setDragTick(n => n + 1)
-    }
-
     function onMove(e: MouseEvent | TouchEvent) {
-      if (!dragging.current) return
-      if (e.cancelable) e.preventDefault()
+      const activeCard = getActiveCardEl()
+      if (!dragging.current || !activeCard) return
+      if ('cancelable' in e && e.cancelable) e.preventDefault()
 
       if ('touches' in e && e.touches.length >= 2 && gestureStart.current) {
         const g = gestureStart.current
-        const info = getTI(e.touches)
+        const info = getTouchesInfo(e.touches)
+
         const nextScale = Math.max(0.2, Math.min(5, g.startScale * (info.dist / g.dist)))
         const nextRotate = g.startRotate + (info.angle - g.angle)
+
         if (g.kind === 'photo') {
-          photoFrameScaleRef.current = nextScale
-          photoFrameRotateRef.current = nextRotate
           setPhotoFrameScale(Number(nextScale.toFixed(3)))
           setPhotoFrameRotate(Number(nextRotate.toFixed(2)))
         } else {
-          logoScaleRef.current = nextScale
-          logoRotateRef.current = nextRotate
           setLogoScale(Number(nextScale.toFixed(3)))
           setLogoRotate(Number(nextRotate.toFixed(2)))
         }
+
         movedDuringGesture.current = true
         return
       }
 
       if (!dragStart.current) return
 
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY
-      const activeCard = getActiveCardElRef.current()
-      const w = (activeCard?.offsetWidth) || window.innerWidth * 0.85
-      const h = (activeCard?.offsetHeight) || window.innerHeight * 0.5
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+      let rect = activeCard.getBoundingClientRect()
+      if (rect.width < 10 || rect.height < 10) {
+        const pr = activeCard.parentElement?.getBoundingClientRect()
+        if (pr && pr.width > 10) rect = pr
+      }
+      const w = rect.width > 0 ? rect.width : 1
+      const h = rect.height > 0 ? rect.height : 1
 
       const dx = ((clientX - dragStart.current.mx) / w) * 100
       const dy = ((clientY - dragStart.current.my) / h) * 100
+
       const nx = Math.max(0, Math.min(100, dragStart.current.ox + dx))
       const ny = Math.max(0, Math.min(100, dragStart.current.oy + dy))
 
@@ -1010,7 +959,10 @@ export default function BuilderPage() {
         logoPosRef.current = { x: nx, y: ny }
         setLogoPos({ x: nx, y: ny })
       }
-      if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) movedDuringGesture.current = true
+
+      if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) {
+        movedDuringGesture.current = true
+      }
     }
 
     function onUp() {
@@ -1018,10 +970,12 @@ export default function BuilderPage() {
       dragStart.current = null
       gestureStart.current = null
       setDragTick(n => n + 1)
-      requestAnimationFrame(() => { movedDuringGesture.current = false })
+
+      requestAnimationFrame(() => {
+        movedDuringGesture.current = false
+      })
     }
 
-    window.addEventListener('touchstart', onTouchStart, { passive: false })
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
@@ -1029,14 +983,48 @@ export default function BuilderPage() {
     window.addEventListener('touchcancel', onUp)
 
     return () => {
-      window.removeEventListener('touchstart', onTouchStart)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       window.removeEventListener('touchmove', onMove as EventListener)
       window.removeEventListener('touchend', onUp)
       window.removeEventListener('touchcancel', onUp)
     }
-  }, []) // ← empty: registered once, reads everything via refs
+  }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
+
+  // ── Non-passive delegated touchstart for photo/logo drag ────────────────────
+  // React synthetic onTouchStart is passive → preventDefault() silently fails.
+  // We listen on the stable card refs and delegate via data-drag attribute.
+  useEffect(() => {
+    const cards = [
+      desktopCardRef.current,
+      mobileCardRef.current,
+      landscapeCardRef.current,
+    ].filter(Boolean) as HTMLDivElement[]
+
+    function onTouch(e: TouchEvent) {
+      const target = e.target as HTMLElement | null
+      const dragEl = target?.closest<HTMLElement>('[data-drag]')
+      if (!dragEl) return
+      e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
+      const kind = dragEl.dataset.drag as 'photo' | 'logo'
+      const re = e as unknown as React.TouchEvent
+      if (kind === 'photo') {
+        if (photoEditModeRef.current === 'content') {
+          startPhotoInnerMode(re)
+        } else {
+          startDrag(re, 'photo')
+        }
+      } else {
+        startDrag(re, 'logo')
+      }
+    }
+
+    cards.forEach(el => el.addEventListener('touchstart', onTouch, { passive: false }))
+    return () => {
+      cards.forEach(el => el.removeEventListener('touchstart', onTouch))
+    }
+  }, [isMobile, isLandscape])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -1346,91 +1334,6 @@ export default function BuilderPage() {
     tStr: t,
   }
 
-  // ── DragOverlay — lives OUTSIDE preserve-3d, touch handled via window delegation ──
-  function DragOverlay() {
-    return (
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100 }}>
-        {form.photoUrl && (
-          <div
-            data-drag="photo"
-            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); photoEditMode === 'content' ? startPhotoInnerMode(e) : startDrag(e, 'photo') }}
-            onDoubleClick={e => { e.preventDefault(); e.stopPropagation(); setPhotoEditMode(m => m === 'frame' ? 'content' : 'frame') }}
-            onWheel={handlePhotoWheel}
-            style={{
-              position: 'absolute',
-              left: `${photoPos.x}%`,
-              top: `${photoPos.y}%`,
-              width: '64px',
-              height: '64px',
-              overflow: 'hidden',
-              cursor: photoEditMode === 'content' ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
-              transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
-              transformOrigin: 'center center',
-              ...frameShape,
-              border: `2px solid ${design.accent}`,
-              boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
-              touchAction: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-              pointerEvents: 'all',
-            }}
-          >
-            <img
-              src={form.photoUrl}
-              alt=""
-              draggable={false}
-              style={{
-                width: '100%', height: '100%', objectFit: 'cover',
-                objectPosition: `${photoObjPos.x}% ${photoObjPos.y}%`,
-                transform: `scale(${photoScale}) rotate(${photoRotate}deg)`,
-                transformOrigin: 'center center',
-                userSelect: 'none', pointerEvents: 'none',
-              }}
-            />
-            <div style={{
-              position: 'absolute', left: '50%', bottom: '3px',
-              transform: 'translateX(-50%)', padding: '1px 5px',
-              borderRadius: '999px', fontSize: '7px', fontWeight: 700,
-              background: 'rgba(0,0,0,0.5)', color: '#fff',
-              pointerEvents: 'none', whiteSpace: 'nowrap',
-            }}>
-              {photoEditMode === 'content' ? '✎' : '⤢'}
-            </div>
-          </div>
-        )}
-        {form.logoUrl && (
-          <div
-            data-drag="logo"
-            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); startDrag(e, 'logo') }}
-            style={{
-              position: 'absolute',
-              left: `${logoPos.x}%`,
-              top: `${logoPos.y}%`,
-              cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
-              transform: `translate(-50%, -50%) scale(${logoScale}) rotate(${logoRotate}deg)`,
-              transformOrigin: 'center center',
-              touchAction: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-              pointerEvents: 'all',
-            }}
-          >
-            <img
-              src={form.logoUrl}
-              alt=""
-              draggable={false}
-              style={{
-                height: '30px', objectFit: 'contain',
-                filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
-                pointerEvents: 'none', userSelect: 'none',
-              }}
-            />
-          </div>
-        )}
-      </div>
-    )
-  }
-
   function CardFront({
     radius = '20px',
     minH = '300px',
@@ -1478,6 +1381,116 @@ export default function BuilderPage() {
             pointerEvents: 'none'
           }} />
 
+        {form.photoUrl && (
+          <div
+            data-drag="photo"
+            onMouseDown={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (photoEditMode === 'content') {
+                startPhotoInnerMode(e)
+              } else {
+                startDrag(e, 'photo')
+              }
+            }}
+            onDoubleClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              setPhotoEditMode(m => (m === 'frame' ? 'content' : 'frame'))
+            }}
+            onWheel={handlePhotoWheel}
+            title={photoEditMode === 'content' ? 'Content mode' : 'Frame mode'}
+            style={{
+              position: 'absolute',
+              left: `${photoPos.x}%`,
+              top: `${photoPos.y}%`,
+              width: '64px',
+              height: '64px',
+              overflow: 'hidden',
+              cursor: photoEditMode === 'content' ? 'move' : (dragging.current === 'photo' ? 'grabbing' : 'grab'),
+              zIndex: 50,
+              transform: `translate(-50%, -50%) scale(${photoFrameScale}) rotate(${photoFrameRotate}deg)`,
+              transformOrigin: 'center center',
+              ...frameShape,
+              border: `2px solid ${design.accent}`,
+              boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
+              touchAction: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <img
+              src={form.photoUrl}
+              alt="photo"
+              draggable={false}
+              style={{
+                width: '100%',
+                height: 'auto',
+                objectFit: 'cover',
+                objectPosition: 'center center',
+                transform: `translate(${(photoObjPos.x - 50) * 1.2}%, ${(photoObjPos.y - 50) * 1.2}%) scale(${photoScale}) rotate(${photoRotate}deg)`,
+                transformOrigin: 'center center',
+                userSelect: 'none',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                left: '50%',
+                bottom: '4px',
+                transform: 'translateX(-50%)',
+                padding: '2px 6px',
+                borderRadius: '999px',
+                fontSize: '8px',
+                fontWeight: 700,
+                background: 'rgba(0,0,0,0.45)',
+                color: '#fff',
+                pointerEvents: 'none',
+                border: '1px solid rgba(255,255,255,0.08)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {photoEditMode === 'content' ? 'Content' : 'Frame'}
+            </div>
+          </div>
+        )}
+
+        {form.logoUrl && (
+          <div
+            data-drag="logo"
+            onMouseDown={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              startDrag(e, 'logo')
+            }}
+            style={{
+              position: 'absolute',
+              left: `${logoPos.x}%`,
+              top: `${logoPos.y}%`,
+              cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
+              zIndex: 50,
+              transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
+              transformOrigin: 'top left',
+              touchAction: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <img
+              src={form.logoUrl}
+              alt="logo"
+              draggable={false}
+              style={{
+                height: '30px',
+                objectFit: 'contain',
+                filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.6))`,
+                pointerEvents: 'none',
+                userSelect: 'none'
+              }}
+            />
+          </div>
+        )}
         <div
           style={{
             position: 'relative',
@@ -1834,7 +1847,6 @@ export default function BuilderPage() {
               <CardBack radius="12px" minH="220px" pad="16px" />
             </div>
           </div>
-          <DragOverlay />
         </div>
         <div style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '5px', zIndex: 10 }}>
           <button onClick={() => setIsFlipped(f => !f)} style={{ width: '26px', height: '26px', borderRadius: '7px', background: C.g, boxShadow: raisedSm, border: '1px solid rgba(255,255,255,0.04)', color: C.smoke, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}>↻</button>
@@ -1983,7 +1995,6 @@ export default function BuilderPage() {
               <CardBack radius="12px" minH="220px" pad="16px" />
             </div>
           </div>
-          <DragOverlay />
           <div
             style={{
               display: 'flex',
@@ -2448,7 +2459,6 @@ export default function BuilderPage() {
                 <CardBack />
               </div>
             </div>
-            <DragOverlay />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', padding: '0 4px' }}>
               <span style={{ fontSize: '10px', color: C.smoke }}><span style={{ color: C.gold, fontWeight: 700 }}>{tpl?.label}</span> · {(FONTS.find((f: any) => f.id === design.font) || FONTS[0] || { name: '' }).name}</span>
               <button
