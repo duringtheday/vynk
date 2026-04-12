@@ -991,40 +991,26 @@ export default function BuilderPage() {
     }
   }, [photoFrameScale, photoFrameRotate, logoScale, logoRotate, isMobile, isLandscape])
 
-  // ── Non-passive delegated touchstart for photo/logo drag ────────────────────
-  // React synthetic onTouchStart is passive → preventDefault() silently fails.
-  // We listen on the stable card refs and delegate via data-drag attribute.
+  // ── Non-passive touchstart for photo/logo drag ────────────────────────────
   useEffect(() => {
-    const cards = [
-      desktopCardRef.current,
-      mobileCardRef.current,
-      landscapeCardRef.current,
-    ].filter(Boolean) as HTMLDivElement[]
-
     function onTouch(e: TouchEvent) {
-      const target = e.target as HTMLElement | null
-      const dragEl = target?.closest<HTMLElement>('[data-drag]')
+      const dragEl = (e.target as HTMLElement)?.closest<HTMLElement>('[data-drag]')
       if (!dragEl) return
-      e.stopPropagation()
       if (e.cancelable) e.preventDefault()
+      e.stopPropagation()
       const kind = dragEl.dataset.drag as 'photo' | 'logo'
       const re = e as unknown as React.TouchEvent
       if (kind === 'photo') {
-        if (photoEditModeRef.current === 'content') {
-          startPhotoInnerMode(re)
-        } else {
-          startDrag(re, 'photo')
-        }
+        photoEditModeRef.current === 'content'
+          ? startPhotoInnerMode(re)
+          : startDrag(re, 'photo')
       } else {
         startDrag(re, 'logo')
       }
     }
-
-    cards.forEach(el => el.addEventListener('touchstart', onTouch, { passive: false }))
-    return () => {
-      cards.forEach(el => el.removeEventListener('touchstart', onTouch))
-    }
-  }, [isMobile, isLandscape])
+    window.addEventListener('touchstart', onTouch, { passive: false })
+    return () => window.removeEventListener('touchstart', onTouch)
+  }, [])
 
   function onSheetDragStart(e: React.TouchEvent) {
     e.stopPropagation()
@@ -1470,7 +1456,7 @@ export default function BuilderPage() {
               top: `${logoPos.y}%`,
               cursor: dragging.current === 'logo' ? 'grabbing' : 'grab',
               zIndex: 50,
-              transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
+              transform: `translate(-50%, -50%) scale(${logoScale}) rotate(${logoRotate}deg)`,
               transformOrigin: 'center center',
               touchAction: 'none',
               WebkitUserSelect: 'none',
